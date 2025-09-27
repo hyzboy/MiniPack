@@ -9,3 +9,9 @@
 /MiniPack.dir/Release/*.recipe
 /MiniPack.dir/Release/MiniPack.tlog/*.tlog
 /MiniPack.dir/Release/MiniPack.tlog/*.lastbuildstate
+/CMakeFiles
+/.vs/MiniPack/v17/ipch/AutoPCH/699092ee9303d832/*.ipch
+/.vs
+/.vscode
+/MiniPack.dir
+/x64
