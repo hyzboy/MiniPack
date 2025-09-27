@@ -1,0 +1,11 @@
+/*.vcxproj
+/*.filters
+/*.sln
+/x64/Debug/ZERO_CHECK/*.recipe
+/x64/Debug/ZERO_CHECK/ZERO_CHECK.tlog/*.tlog
+/x64/Debug/ZERO_CHECK/ZERO_CHECK.tlog/*.lastbuildstate
+/x64/Release/ZERO_CHECK/*.recipe
+/MiniPack.dir/Debug/MiniPack.tlog/*.tlog
+/MiniPack.dir/Release/*.recipe
+/MiniPack.dir/Release/MiniPack.tlog/*.tlog
+/MiniPack.dir/Release/MiniPack.tlog/*.lastbuildstate

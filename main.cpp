@@ -7,10 +7,16 @@
 #include <algorithm>
 #include <iterator>
 #include <limits>
+#include <array>
+#include <filesystem>
+
+#include "encoding.h"
+#include "utf8_to_utf16.h"
 
 struct FileEntry
 {
-    std::string name;
+    std::string name_utf8; // used for file I/O and messages
+    std::u16string name;   // UTF-16 name stored in info block
     uint32_t size = 0;
     uint32_t offset = 0; // offset relative to start of data section
 };
@@ -53,20 +59,27 @@ int main(int argc, char **argv) {
         if (flag == "--index-only" || flag == "-i") index_only = true;
     }
 
-    // Read list file
-    std::ifstream list_in(list_path);
-    if (!list_in) {
-        std::cerr << "Failed to open list file: " << list_path << "\n";
+    // Read list file as UTF-8 (detect BOM / encoding)
+    std::string list_content_utf8;
+    if (!read_text_file_as_utf8(list_path, list_content_utf8)) {
+        std::cerr << "Failed to read or decode list file: " << list_path << "\n";
         return 1;
     }
 
     std::vector<FileEntry> files;
     std::string line;
-    while (std::getline(list_in, line)) {
+    std::istringstream iss(list_content_utf8);
+    while (std::getline(iss, line)) {
         std::string s = trim(line);
         if (s.empty()) continue;
         if (!s.empty() && s[0] == '#') continue; // comment
-        files.push_back(FileEntry{s, 0, 0});
+        FileEntry fe;
+        fe.name_utf8 = s;
+        if (!utf8_to_utf16(s, fe.name)) {
+            std::cerr << "Failed to convert filename to UTF-16: " << s << "\n";
+            return 1;
+        }
+        files.push_back(std::move(fe));
     }
 
     if (files.empty()) {
@@ -74,24 +87,27 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Gather sizes
-    uint64_t total_data_size = 0;
+    // Gather sizes for each file (determine file sizes before building info block)
+    namespace fs = std::filesystem;
     for (auto &f : files) {
-        std::ifstream in(f.name, std::ios::binary | std::ios::ate);
-        if (!in) {
-            std::cerr << "Failed to open file: " << f.name << "\n";
+        std::error_code ec;
+        // Use std::filesystem to get the file size instead of seeking
+        uintmax_t sz = fs::file_size(f.name_utf8, ec);
+        if (ec) {
+            std::cerr << "Failed to get size for file: " << f.name_utf8 << " (" << ec.message() << ")\n";
             return 1;
         }
-        std::ifstream::pos_type pos = in.tellg();
-        if (pos < 0) pos = 0;
-        uint64_t sz = static_cast<uint64_t>(pos);
         if (sz > std::numeric_limits<uint32_t>::max()) {
-            std::cerr << "File too large for 32-bit size: " << f.name << "\n";
+            std::cerr << "File too large (must fit in 32-bit size): " << f.name_utf8 << "\n";
             return 1;
         }
         f.size = static_cast<uint32_t>(sz);
-        total_data_size += sz;
     }
+
+    // Calculate total data size
+    uint64_t total_data_size = 0;
+    for (auto &f : files)
+        total_data_size += f.size;
 
     if (total_data_size > std::numeric_limits<uint32_t>::max()) {
         std::cerr << "Total data too large for 32-bit offsets/sizes\n";
@@ -102,21 +118,27 @@ int main(int argc, char **argv) {
     // Info format:
     // uint32_t version
     // uint32_t file_count
-    // names block: for each file: uint8_t name_len, name bytes
-    // metadata block: for each file: uint32_t size, uint32_t offset (relative to data start)
+    // names block: for each file: uint8_t name_len (in char16_t units), name bytes (UTF-16 LE)
+    // metadata block: for each file: uint32_t size, uint32_t offset (relative to data start), uint64_t xxh64, uint8_t sha1le[20]
 
     std::vector<uint8_t> info;
     append_uint32(info, 1); // version
     append_uint32(info, static_cast<uint32_t>(files.size()));
 
-    // Names block (name length is one byte)
+    // Names block (name length is one byte, count of char16_t units)
     for (auto &f : files) {
         if (f.name.size() > 0xFF) {
-            std::cerr << "Filename too long (max 255): " << f.name << "\n";
+            std::string n = f.name_utf8.empty() ? "" : f.name_utf8;
+            std::cerr << "Filename too long (max 255 UTF-16 units): " << n << "\n";
             return 1;
         }
         info.push_back(static_cast<uint8_t>(f.name.size()));
-        info.insert(info.end(), f.name.begin(), f.name.end());
+        // write each char16_t as little-endian two bytes
+        for (char16_t ch : f.name) {
+            uint16_t v = static_cast<uint16_t>(ch);
+            info.push_back(static_cast<uint8_t>(v & 0xFF));
+            info.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
+        }
     }
 
     // Calculate offsets relative to data start (which will be immediately after magic + info_size + info)
@@ -130,7 +152,7 @@ int main(int argc, char **argv) {
         current_data_offset += f.size;
     }
 
-    // Metadata block: write size and offset for each file (32-bit)
+    // Metadata block: write size, offset, xxh64 and sha1le for each file
     for (auto &f : files) {
         append_uint32(info, f.size);
         append_uint32(info, f.offset);
@@ -159,22 +181,20 @@ int main(int argc, char **argv) {
     out.write(reinterpret_cast<const char*>(header.data()), static_cast<std::streamsize>(header.size()));
 
     if (!index_only) {
-        const size_t bufsize = 64 * 1024;
-        std::vector<char> buffer(bufsize);
-
+        std::vector<char> copybuf(64 * 1024);
         for (const auto &f : files) {
-            std::ifstream in(f.name, std::ios::binary);
+            std::ifstream in(f.name_utf8, std::ios::binary);
             if (!in) {
-                std::cerr << "Failed to reopen file: " << f.name << "\n";
+                std::cerr << "Failed to reopen file: " << f.name_utf8 << "\n";
                 return 1;
             }
             uint64_t remaining = f.size;
             while (remaining > 0) {
-                size_t toread = static_cast<size_t>(std::min<uint64_t>(bufsize, remaining));
-                in.read(buffer.data(), static_cast<std::streamsize>(toread));
+                size_t toread = static_cast<size_t>(std::min<uint64_t>(copybuf.size(), remaining));
+                in.read(copybuf.data(), static_cast<std::streamsize>(toread));
                 std::streamsize r = in.gcount();
                 if (r <= 0) break;
-                out.write(buffer.data(), r);
+                out.write(copybuf.data(), r);
                 remaining -= static_cast<uint64_t>(r);
             }
         }
