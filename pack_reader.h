@@ -6,9 +6,15 @@
 #include <optional>
 #include <string>
 
+// Encoding indicator for stored filenames inside the pack info block
+enum class NameEncoding : uint8_t {
+    Utf8 = 0,
+    Utf16Le = 1,
+};
+
 struct MiniPackEntry {
-    std::u16string name16; // raw UTF-16 name from the info block
-    std::string name_utf8; // converted UTF-8 name (if conversion succeeds)
+    // Stored filename from the info block as UTF-8
+    std::string name_utf8;
     uint32_t size = 0;
     uint32_t offset = 0; // relative to start of data section
 };

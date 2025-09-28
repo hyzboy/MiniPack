@@ -5,13 +5,23 @@
 #include <fstream>
 #include <cstring>
 
-static std::string utf16_to_utf8_fallback(const std::u16string &s)
+// Helper: convert UTF-16LE std::u16string to UTF-8 (platform-specific implementations exist). Provide a local conversion using utf8_to_utf16 inverse is not available, so implement simple conversion for BMP only as fallback.
+static std::string u16_to_utf8_fallback(const std::u16string &s)
 {
     std::string out;
     out.reserve(s.size());
     for (char16_t c : s) {
-        if (c <= 0x7F) out.push_back(static_cast<char>(c));
-        else out.push_back('?');
+        uint32_t code = static_cast<uint16_t>(c);
+        if (code <= 0x7F) {
+            out.push_back(static_cast<char>(code));
+        } else if (code <= 0x7FF) {
+            out.push_back(static_cast<char>(0xC0 | ((code >> 6) & 0x1F)));
+            out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
+        } else {
+            out.push_back(static_cast<char>(0xE0 | ((code >> 12) & 0x0F)));
+            out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
+        }
     }
     return out;
 }
@@ -49,23 +59,57 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     uint32_t file_count = 0;
     if (!read_u32(file_count)) { err = "Info block corrupted (file_count)"; return false; }
 
-    // read names
+    // We need to support both old format (no encoding byte, names in UTF-8) and new format (per-name encoding byte).
     index.m_entries.reserve(file_count);
     for (uint32_t i = 0; i < file_count; ++i) {
         if (pos >= info.size()) { err = "Info block corrupted (name_len)"; return false; }
-        uint8_t name_len = info[pos++];
-        if (pos + size_t(name_len) * 2 > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
-        std::u16string name16;
-        name16.reserve(name_len);
-        for (uint8_t j = 0; j < name_len; ++j) {
-            uint16_t v = static_cast<uint16_t>(info[pos] | (info[pos+1] << 8));
-            pos += 2;
-            name16.push_back(static_cast<char16_t>(v));
+        // Peek first byte: if it's a known encoding value (0 or 1) then it's new format; otherwise treat as old-format name length (UTF-8)
+        uint8_t first = info[pos];
+        NameEncoding enc = NameEncoding::Utf8;
+        size_t name_len = 0;
+        if (first == static_cast<uint8_t>(NameEncoding::Utf8) || first == static_cast<uint8_t>(NameEncoding::Utf16Le)) {
+            // new format: encoding byte followed by length
+            enc = static_cast<NameEncoding>(first);
+            pos++;
+            if (pos >= info.size()) { err = "Info block corrupted (name_len after enc)"; return false; }
+            name_len = info[pos++];
+        } else {
+            // old format: this byte was the length of UTF-8 name
+            name_len = first;
+            pos++;
+            enc = NameEncoding::Utf8;
         }
-        MiniPackEntry e;
-        e.name16 = std::move(name16);
-        e.name_utf8 = utf16_to_utf8_fallback(e.name16);
-        index.m_entries.push_back(std::move(e));
+
+        if (enc == NameEncoding::Utf8) {
+            if (pos + name_len > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
+            std::string name;
+            name.reserve(name_len);
+            for (size_t j = 0; j < name_len; ++j) name.push_back(static_cast<char>(info[pos++]));
+
+            MiniPackEntry e;
+            e.name_utf8 = std::move(name);
+            index.m_entries.push_back(std::move(e));
+        } else if (enc == NameEncoding::Utf16Le) {
+            // name_len is number of UTF-16 code units
+            if (pos + name_len * 2 > info.size()) { err = "Info block corrupted (utf16 name bytes)"; return false; }
+            std::u16string u16;
+            u16.reserve(name_len);
+            for (size_t j = 0; j < name_len; ++j) {
+                uint16_t v = static_cast<uint16_t>(info[pos] | (info[pos+1] << 8));
+                pos += 2;
+                u16.push_back(static_cast<char16_t>(v));
+            }
+            // convert to utf8 - try to use available helper via round-trip; otherwise fallback
+            std::string utf8;
+            // No direct helper to convert u16->utf8 provided; use fallback
+            utf8 = u16_to_utf8_fallback(u16);
+            MiniPackEntry e;
+            e.name_utf8 = std::move(utf8);
+            index.m_entries.push_back(std::move(e));
+        } else {
+            err = "Unsupported name encoding";
+            return false;
+        }
     }
 
     // read metadata

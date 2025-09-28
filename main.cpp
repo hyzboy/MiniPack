@@ -21,6 +21,23 @@ static std::string trim(const std::string &s)
     return s.substr(b, e - b + 1);
 }
 
+// Remove UTF-8 BOM (0xEF,0xBB,0xBF) or Unicode BOM character at start of the string
+static void remove_utf8_bom(std::string &s)
+{
+    if (s.size() >= 3 && static_cast<unsigned char>(s[0]) == 0xEF && static_cast<unsigned char>(s[1]) == 0xBB && static_cast<unsigned char>(s[2]) == 0xBF) {
+        s.erase(0, 3);
+        return;
+    }
+    // Also handle a single U+FEFF encoded in UTF-8 (same bytes as above) just in case
+    if (!s.empty() && static_cast<unsigned char>(s[0]) == 0xEF) {
+        // try to remove any initial U+FEFF byte sequence if present
+        if (s.size() >= 3 && static_cast<unsigned char>(s[1]) == 0xBB && static_cast<unsigned char>(s[2]) == 0xBF) {
+            s.erase(0, 3);
+            return;
+        }
+    }
+}
+
 static bool read_file_list(const std::string &list_path, std::vector<std::string> &out_files, std::string &err)
 {
     std::string list_content_utf8;
@@ -29,9 +46,14 @@ static bool read_file_list(const std::string &list_path, std::vector<std::string
         return false;
     }
 
+    // Ensure any BOM at the start of the file is removed
+    remove_utf8_bom(list_content_utf8);
+
     std::istringstream iss(list_content_utf8);
     std::string line;
     while (std::getline(iss, line)) {
+        // Remove BOM from individual lines as well (some editors/files may include BOM on first line only)
+        remove_utf8_bom(line);
         std::string s = trim(line);
         if (s.empty()) continue;
         if (!s.empty() && s[0] == '#') continue; // comment

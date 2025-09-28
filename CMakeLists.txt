@@ -31,17 +31,17 @@ set(SRC_FILES
     pack_reader.h
     pack_reader_io.h
     pack_reader_io.cpp
-    pack_reader_index.cpp
     mini_pack_builder_file.h
     mini_pack_builder_file.cpp
     mini_pack_writer_vector.cpp
     mini_pack_writer_file.cpp
+    utf8_to_utf16.cpp
 )
 
 if(WIN32)
-    list(APPEND SRC_FILES utf8_to_utf16_windows.cpp encoding_windows.cpp)
+    list(APPEND SRC_FILES encoding_windows.cpp)
 else()
-    list(APPEND SRC_FILES utf8_to_utf16_posix.cpp encoding_posix.cpp)
+    list(APPEND SRC_FILES encoding_posix.cpp)
 endif()
 
 # 添加可执行文件

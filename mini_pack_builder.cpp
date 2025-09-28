@@ -1,5 +1,4 @@
 #include "mini_pack_builder.h"
-
 #include "utf8_to_utf16.h"
 
 #include <limits>
@@ -20,16 +19,12 @@ std::size_t MiniPackBuilder::file_count() const { return m_entries.size(); }
 
 bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const std::vector<std::uint8_t> &data, std::string &err)
 {
-    std::u16string name_utf16;
-    if (!utf8_to_utf16(name_utf8, name_utf16)) {
-        err = "Failed to convert name to UTF-16: " + name_utf8;
-        return false;
-    }
+    if (name_utf8.empty()) { err = "Failed to convert name: empty"; return false; }
     if (data.size() > std::numeric_limits<std::uint32_t>::max()) {
         err = "Buffer too large for MiniPack entry";
         return false;
     }
-    return add_entry_internal(name_utf8, std::move(name_utf16), data, err);
+    return add_entry_internal(name_utf8, data, err);
 }
 
 bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector<std::uint32_t> &offsets, MiniPackBuildResult &result, std::string &err) const
@@ -45,16 +40,35 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     append_uint32(info, 1); // version
     append_uint32(info, static_cast<std::uint32_t>(m_entries.size()));
 
+    // write names with an encoding byte + length + bytes. Default to Utf8 for now.
     for (const auto &entry : m_entries) {
-        if (entry.name_utf16.size() > 0xFF) {
-            err = "Filename too long (max 255 UTF-16 units): " + entry.name_utf8;
-            return false;
-        }
-        info.push_back(static_cast<std::uint8_t>(entry.name_utf16.size()));
-        for (char16_t ch : entry.name_utf16) {
-            std::uint16_t v = static_cast<std::uint16_t>(ch);
-            info.push_back(static_cast<std::uint8_t>(v & 0xFF));
-            info.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+        NameEncoding enc = NameEncoding::Utf8;
+        if (enc == NameEncoding::Utf8) {
+            if (entry.name_utf8.size() > 0xFF) {
+                err = "Filename too long (max 255 bytes): " + entry.name_utf8;
+                return false;
+            }
+            info.push_back(static_cast<uint8_t>(enc));
+            info.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
+            info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
+        } else if (enc == NameEncoding::Utf16Le) {
+            // convert UTF-8 to UTF-16LE on the fly
+            std::u16string u16;
+            if (!utf8_to_utf16(entry.name_utf8, u16)) {
+                err = "Failed to convert name to UTF-16: " + entry.name_utf8;
+                return false;
+            }
+            if (u16.size() > 0xFF) {
+                err = "Filename too long (max 255 UTF-16 units): " + entry.name_utf8;
+                return false;
+            }
+            info.push_back(static_cast<uint8_t>(enc));
+            info.push_back(static_cast<std::uint8_t>(u16.size()));
+            for (char16_t ch : u16) {
+                std::uint16_t v = static_cast<std::uint16_t>(ch);
+                info.push_back(static_cast<std::uint8_t>(v & 0xFF));
+                info.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+            }
         }
     }
 
@@ -122,10 +136,10 @@ void MiniPackBuilder::append_uint32(std::vector<std::uint8_t> &buf, std::uint32_
     for (int i = 0; i < 4; ++i) buf.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
 }
 
-bool MiniPackBuilder::add_entry_internal(std::string name_utf8, std::u16string name_utf16, std::vector<std::uint8_t> data, std::string &err)
+bool MiniPackBuilder::add_entry_internal(std::string name_utf8, std::vector<std::uint8_t> data, std::string &err)
 {
     if (name_utf8.empty()) { err = "Entry name cannot be empty"; return false; }
     if (data.size() > std::numeric_limits<std::uint32_t>::max()) { err = "Entry size exceeds limit"; return false; }
-    m_entries.push_back(Entry{std::move(name_utf8), std::move(name_utf16), std::move(data)});
+    m_entries.push_back(Entry{std::move(name_utf8), std::move(data)});
     return true;
 }

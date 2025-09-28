@@ -1,5 +1,4 @@
 #include "mini_pack_builder_file.h"
-#include "utf8_to_utf16.h"
 
 #include <fstream>
 #include <limits>

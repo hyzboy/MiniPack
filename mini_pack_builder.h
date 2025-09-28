@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "pack_reader.h"
+
 struct MiniPackBuildResult {
     std::size_t info_size = 0;
     std::uint64_t total_data_size = 0;
@@ -45,11 +47,10 @@ protected:
 private:
     static void append_uint32(std::vector<std::uint8_t> &buf, std::uint32_t v);
 
-    bool add_entry_internal(std::string name_utf8, std::u16string name_utf16, std::vector<std::uint8_t> data, std::string &err);
+    bool add_entry_internal(std::string name_utf8, std::vector<std::uint8_t> data, std::string &err);
 
     struct Entry {
         std::string name_utf8;
-        std::u16string name_utf16;
         std::vector<std::uint8_t> data;
     };
 
