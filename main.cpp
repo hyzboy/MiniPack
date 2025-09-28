@@ -9,7 +9,7 @@
 #include <limits>
 
 #include "encoding.h"
-#include "utf8_to_utf16.h"
+#include "utf_conv.h"
 #include "mini_pack_builder.h"
 #include "mini_pack_builder_file.h"
 #include "file_list_reader.h"

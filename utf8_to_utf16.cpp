@@ -1,4 +1,4 @@
-#include "utf8_to_utf16.h"
+#include "utf_conv.h"
 
 #include <string>
 #include <cstdint>
@@ -63,10 +63,9 @@ bool utf8_to_utf16(const std::string &utf8, std::u16string &out)
         if (codepoint <= 0xFFFF) {
             out.push_back(static_cast<char16_t>(codepoint));
         } else {
-            // surrogate pair
-            uint32_t v = codepoint - 0x10000;
-            char16_t hi = static_cast<char16_t>(0xD800 + ((v >> 10) & 0x3FF));
-            char16_t lo = static_cast<char16_t>(0xDC00 + (v & 0x3FF));
+            uint32_t cp = codepoint - 0x10000;
+            char16_t hi = static_cast<char16_t>(0xD800 + ((cp >> 10) & 0x3FF));
+            char16_t lo = static_cast<char16_t>(0xDC00 + (cp & 0x3FF));
             out.push_back(hi);
             out.push_back(lo);
         }

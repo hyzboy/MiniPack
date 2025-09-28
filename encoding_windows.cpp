@@ -1,7 +1,6 @@
 #ifdef _WIN32
 #include "encoding.h"
-#include "utf8_to_utf16.h"
-#include "utf16_to_utf8.h"
+#include "utf_conv.h"
 #include <windows.h>
 #include <vector>
 #include <fstream>
@@ -19,18 +18,32 @@ bool read_text_file_as_utf8(const std::string &path, std::string &out)
         out.assign(reinterpret_cast<char*>(data.data() + 3), data.size() - 3);
         return true;
     }
+    if (data.size() >= 4 && data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00) {
+        // UTF-32 LE BOM
+        const uint8_t* bytes = data.data() + 4;
+        size_t sz = data.size() - 4;
+        if (utf32le_bytes_to_utf8(bytes, sz, out)) return true;
+        return false;
+    }
+    if (data.size() >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) {
+        // UTF-32 BE BOM
+        const uint8_t* bytes = data.data() + 4;
+        size_t sz = data.size() - 4;
+        if (utf32be_bytes_to_utf8(bytes, sz, out)) return true;
+        return false;
+    }
     if (data.size() >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
         // UTF-16 LE BOM
         const uint8_t* bytes = data.data() + 2;
         size_t sz = data.size() - 2;
-        if (utf16_bytes_to_utf8(bytes, sz, false, out)) return true;
+        if (utf16le_bytes_to_utf8(bytes, sz, out)) return true;
         return false;
     }
     if (data.size() >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
         // UTF-16 BE BOM
         const uint8_t* bytes = data.data() + 2;
         size_t sz = data.size() - 2;
-        if (utf16_bytes_to_utf8(bytes, sz, true, out)) return true;
+        if (utf16be_bytes_to_utf8(bytes, sz, out)) return true;
         return false;
     }
 

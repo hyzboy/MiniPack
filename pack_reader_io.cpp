@@ -1,30 +1,9 @@
 #include "pack_reader_io.h"
 #include "pack_reader.h"
-#include "utf8_to_utf16.h"
+#include "utf_conv.h"
 
 #include <fstream>
 #include <cstring>
-
-// Helper: convert UTF-16LE std::u16string to UTF-8 (platform-specific implementations exist). Provide a local conversion using utf8_to_utf16 inverse is not available, so implement simple conversion for BMP only as fallback.
-static std::string u16_to_utf8_fallback(const std::u16string &s)
-{
-    std::string out;
-    out.reserve(s.size());
-    for (char16_t c : s) {
-        uint32_t code = static_cast<uint16_t>(c);
-        if (code <= 0x7F) {
-            out.push_back(static_cast<char>(code));
-        } else if (code <= 0x7FF) {
-            out.push_back(static_cast<char>(0xC0 | ((code >> 6) & 0x1F)));
-            out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
-        } else {
-            out.push_back(static_cast<char>(0xE0 | ((code >> 12) & 0x0F)));
-            out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
-            out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
-        }
-    }
-    return out;
-}
 
 bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::string &err)
 {
@@ -99,10 +78,12 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
                 pos += 2;
                 u16.push_back(static_cast<char16_t>(v));
             }
-            // convert to utf8 - try to use available helper via round-trip; otherwise fallback
+            // convert to utf8 - use helper
             std::string utf8;
-            // No direct helper to convert u16->utf8 provided; use fallback
-            utf8 = u16_to_utf8_fallback(u16);
+            if (!utf16_string_to_utf8(u16, utf8)) {
+                err = "Failed to convert UTF-16 name to UTF-8";
+                return false;
+            }
             MiniPackEntry e;
             e.name_utf8 = std::move(utf8);
             index.m_entries.push_back(std::move(e));

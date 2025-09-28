@@ -24,7 +24,7 @@ endif()
 set(SRC_FILES
     main.cpp
     encoding.h
-    utf8_to_utf16.h
+    utf_conv.h
     mini_pack_builder.cpp
     mini_pack_builder.h
     pack_reader_index.cpp
@@ -38,6 +38,7 @@ set(SRC_FILES
     utf8_to_utf16.cpp
     file_list_reader.cpp
     utf16_to_utf8.cpp
+    utf32_to_utf8.cpp
 )
 
 if(WIN32)
