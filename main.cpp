@@ -13,10 +13,11 @@
 #include "mini_pack_builder.h"
 #include "mini_pack_builder_file.h"
 #include "file_list_reader.h"
+#include "dir_scan.h"
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        std::cout << "Usage: " << argv[0] << " <list.txt> <output.pack> [--index-only|-i]\n";
+        std::cout << "Usage: " << argv[0] << " <list.txt|directory> <output.pack> [--index-only|-i]\n";
         return 1;
     }
 
@@ -28,17 +29,28 @@ int main(int argc, char **argv) {
         if (flag == "--index-only" || flag == "-i") index_only = true;
     }
 
-    std::vector<std::string> files;
+    // Use a vector of pairs: {disk_path, stored_name_in_pack}
+    std::vector<std::pair<std::string, std::string>> file_pairs;
     std::string err;
-    if (!read_file_list(list_path, files, err)) {
-        std::cerr << err << "\n";
-        return 1;
+
+    // If the input path is a directory, enumerate files recursively and store
+    // them with relative paths as their stored names inside the pack.
+    if (!collect_files_from_directory(list_path, file_pairs, err)) {
+        // If collection failed, fall back to treating list_path as a file list
+        // (collect_files_from_directory sets err on failure; but read_file_list may be the real intention)
+        file_pairs.clear();
+        std::vector<std::string> files;
+        if (!read_file_list(list_path, files, err)) {
+            std::cerr << err << "\n";
+            return 1;
+        }
+        for (const auto &f : files) file_pairs.emplace_back(f, f);
     }
 
     MiniPackBuilder builder;
     // Add files to builder (this will load files into memory)
-    for (const auto &f : files) {
-        if (!add_file_to_builder(builder, f, err)) {
+    for (const auto &p : file_pairs) {
+        if (!add_file_to_builder(builder, p.first, p.second, err)) {
             std::cerr << err << "\n";
             return 1;
         }

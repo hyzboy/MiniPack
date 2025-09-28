@@ -39,6 +39,8 @@ set(ALL_SRC_FILES
     file_list_reader.cpp
     utf16_to_utf8.cpp
     utf32_to_utf8.cpp
+    dir_scan.h
+    dir_scan.cpp
 )
 
 if(WIN32)
@@ -87,7 +89,7 @@ target_link_libraries(minipack_reader PRIVATE minipack_utf)
 
 # Add executable and link against the libraries
 # Include file_list_reader.cpp in the executable to provide read_file_list implementation
-add_executable(${PROJECT_NAME} main.cpp file_list_reader.cpp)
+add_executable(${PROJECT_NAME} main.cpp file_list_reader.cpp dir_scan.cpp)
 # Link utf library explicitly so it is built and available at link time
 target_link_libraries(${PROJECT_NAME} PRIVATE minipack_writer minipack_reader minipack_utf)
 
