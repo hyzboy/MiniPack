@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+﻿cmake_minimum_required(VERSION 3.10)
 
 # 设置项目名称
 project(MiniPack)
@@ -27,8 +27,11 @@ set(SRC_FILES
     utf8_to_utf16.h
     mini_pack_builder.cpp
     mini_pack_builder.h
-    pack_reader.cpp
+    pack_reader_index.cpp
     pack_reader.h
+    pack_reader_io.h
+    pack_reader_io.cpp
+    pack_reader_index.cpp
     mini_pack_builder_file.h
     mini_pack_builder_file.cpp
     mini_pack_writer_vector.cpp
