@@ -38,28 +38,18 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     uint32_t file_count = 0;
     if (!read_u32(file_count)) { err = "Info block corrupted (file_count)"; return false; }
 
-    // We need to support both old format (no encoding byte, names in UTF-8) and new format (per-name encoding byte).
+    // Read pack-level encoding byte
+    if (pos >= info.size()) { err = "Info block corrupted (missing pack encoding)"; return false; }
+    NameEncoding pack_enc = static_cast<NameEncoding>(info[pos++]);
+
     index.m_entries.reserve(file_count);
     for (uint32_t i = 0; i < file_count; ++i) {
         if (pos >= info.size()) { err = "Info block corrupted (name_len)"; return false; }
-        // Peek first byte: if it's a known encoding value (0 or 1) then it's new format; otherwise treat as old-format name length (UTF-8)
-        uint8_t first = info[pos];
-        NameEncoding enc = NameEncoding::Utf8;
         size_t name_len = 0;
-        if (first == static_cast<uint8_t>(NameEncoding::Utf8) || first == static_cast<uint8_t>(NameEncoding::Utf16Le)) {
-            // new format: encoding byte followed by length
-            enc = static_cast<NameEncoding>(first);
-            pos++;
-            if (pos >= info.size()) { err = "Info block corrupted (name_len after enc)"; return false; }
-            name_len = info[pos++];
-        } else {
-            // old format: this byte was the length of UTF-8 name
-            name_len = first;
-            pos++;
-            enc = NameEncoding::Utf8;
-        }
+        // In pack-level encoding scheme, each name is stored as a single length byte followed by bytes.
+        name_len = info[pos++];
 
-        if (enc == NameEncoding::Utf8) {
+        if (pack_enc == NameEncoding::Utf8) {
             if (pos + name_len > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
             std::string name;
             name.reserve(name_len);
@@ -68,7 +58,7 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
             MiniPackEntry e;
             e.name_utf8 = std::move(name);
             index.m_entries.push_back(std::move(e));
-        } else if (enc == NameEncoding::Utf16Le) {
+        } else if (pack_enc == NameEncoding::Utf16Le) {
             // name_len is number of UTF-16 code units
             if (pos + name_len * 2 > info.size()) { err = "Info block corrupted (utf16 name bytes)"; return false; }
             std::u16string u16;
