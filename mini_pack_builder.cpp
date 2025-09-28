@@ -4,9 +4,57 @@
 
 #include <limits>
 #include <vector>
+#include <memory>
+#include <fstream>
 
 namespace {
 const char kMagic[8] = { 'M','I','N','I','P','A','C','K' };
+}
+
+// Vector writer implementation
+class VectorWriter : public MiniPackWriter {
+public:
+    explicit VectorWriter(std::vector<std::uint8_t> &out) : m_out(out) {}
+    bool write(const std::uint8_t *data, std::size_t size, std::string &err) override {
+        if (size == 0) return true;
+        try {
+            m_out.insert(m_out.end(), data, data + size);
+        } catch (const std::exception &e) {
+            err = e.what();
+            return false;
+        }
+        return true;
+    }
+private:
+    std::vector<std::uint8_t> &m_out;
+};
+
+// File writer implementation (owns an ofstream)
+class FileWriter : public MiniPackWriter {
+public:
+    explicit FileWriter(const std::string &path) : m_out(path, std::ios::binary) {}
+    bool ok() const { return static_cast<bool>(m_out); }
+    bool write(const std::uint8_t *data, std::size_t size, std::string &err) override {
+        if (size == 0) return true;
+        m_out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+        if (!m_out) {
+            err = "Failed to write to file";
+            return false;
+        }
+        return true;
+    }
+private:
+    std::ofstream m_out;
+};
+
+std::unique_ptr<MiniPackWriter> create_vector_writer(std::vector<std::uint8_t> &out) {
+    return std::unique_ptr<MiniPackWriter>(new VectorWriter(out));
+}
+
+std::unique_ptr<MiniPackWriter> create_file_writer(const std::string &path) {
+    auto fw = std::unique_ptr<FileWriter>(new FileWriter(path));
+    if (!fw->ok()) return nullptr;
+    return fw;
 }
 
 MiniPackBuilder::MiniPackBuilder() = default;
@@ -96,22 +144,20 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     return true;
 }
 
-bool MiniPackBuilder::build_pack(std::vector<std::uint8_t> &out, bool index_only, MiniPackBuildResult &result, std::string &err) const
+bool MiniPackBuilder::build_pack(MiniPackWriter *writer, bool index_only, MiniPackBuildResult &result, std::string &err) const
 {
+    if (!writer) { err = "Writer is null"; return false; }
+
     std::vector<std::uint8_t> header;
     std::vector<std::uint32_t> offsets;
     if (!build_index(header, offsets, result, err)) return false;
 
-    out = header;
+    if (!writer->write(header.data(), header.size(), err)) return false;
     if (index_only) return true;
-
-    if (result.total_data_size <= std::numeric_limits<std::size_t>::max()) {
-        try { out.reserve(out.size() + static_cast<std::size_t>(result.total_data_size)); } catch (...) {}
-    }
 
     for (const auto &entry : m_entries) {
         if (!entry.data.empty()) {
-            out.insert(out.end(), entry.data.begin(), entry.data.end());
+            if (!writer->write(entry.data.data(), entry.data.size(), err)) return false;
         }
     }
 

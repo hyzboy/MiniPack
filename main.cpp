@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     }
 
     MiniPackBuilder builder;
-    // Add files to builder (this will set up DataWriter callbacks that will read files when invoked)
+    // Add files to builder (this will load files into memory)
     for (const auto &f : files) {
         if (!add_file_to_builder(builder, f, err)) {
             std::cerr << err << "\n";
@@ -76,10 +76,11 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Build the complete pack in memory (header + data) or header only
+    // Build pack by writing into a vector via a MiniPackWriter
     std::vector<std::uint8_t> pack;
+    auto writer = create_vector_writer(pack);
     MiniPackBuildResult result{};
-    if (!builder.build_pack(pack, index_only, result, err)) {
+    if (!builder.build_pack(writer.get(), index_only, result, err)) {
         std::cerr << err << "\n";
         return 1;
     }
