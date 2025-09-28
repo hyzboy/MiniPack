@@ -1,9 +1,15 @@
 #if !defined(_WIN32)
 #include "encoding.h"
 #include "utf8_to_utf16.h"
-#include <iconv.h>
+#include "utf16_to_utf8.h"
 #include <vector>
 #include <cstring>
+#include <fstream>
+#include <iterator>
+
+#ifdef HAVE_ICONV
+#include <iconv.h>
+#endif
 
 bool read_text_file_as_utf8(const std::string &path, std::string &out)
 {
@@ -17,34 +23,51 @@ bool read_text_file_as_utf8(const std::string &path, std::string &out)
     }
     if (data.size() >= 2 && (unsigned char)data[0] == 0xFF && (unsigned char)data[1] == 0xFE) {
         // UTF-16 LE
-        // convert to UTF-8 using iconv
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data() + 2);
+        size_t sz = data.size() - 2;
+#ifdef HAVE_ICONV
         iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
-        if (cd == (iconv_t)-1) return false;
-        size_t in_bytes_left = data.size() - 2;
-        char *in_ptr = data.data() + 2;
-        std::vector<char> outbuf((in_bytes_left + 1) * 2);
-        char *out_ptr = outbuf.data();
-        size_t out_bytes_left = outbuf.size();
-        size_t res = iconv(cd, &in_ptr, &in_bytes_left, &out_ptr, &out_bytes_left);
-        iconv_close(cd);
-        if (res == (size_t)-1) return false;
-        out.assign(outbuf.data(), outbuf.size() - out_bytes_left);
-        return true;
+        if (cd != (iconv_t)-1) {
+            size_t in_bytes_left = sz;
+            char *in_ptr = const_cast<char*>(reinterpret_cast<const char*>(bytes));
+            std::vector<char> outbuf((in_bytes_left + 1) * 2);
+            char *out_ptr = outbuf.data();
+            size_t out_bytes_left = outbuf.size();
+            size_t res = iconv(cd, &in_ptr, &in_bytes_left, &out_ptr, &out_bytes_left);
+            iconv_close(cd);
+            if (res != (size_t)-1) {
+                out.assign(outbuf.data(), outbuf.size() - out_bytes_left);
+                return true;
+            }
+            // fallthrough to manual converter
+        }
+#endif
+        if (utf16_bytes_to_utf8(bytes, sz, false, out)) return true;
+        return false;
     }
     if (data.size() >= 2 && (unsigned char)data[0] == 0xFE && (unsigned char)data[1] == 0xFF) {
         // UTF-16 BE
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data() + 2);
+        size_t sz = data.size() - 2;
+#ifdef HAVE_ICONV
         iconv_t cd = iconv_open("UTF-8", "UTF-16BE");
-        if (cd == (iconv_t)-1) return false;
-        size_t in_bytes_left = data.size() - 2;
-        char *in_ptr = data.data() + 2;
-        std::vector<char> outbuf((in_bytes_left + 1) * 2);
-        char *out_ptr = outbuf.data();
-        size_t out_bytes_left = outbuf.size();
-        size_t res = iconv(cd, &in_ptr, &in_bytes_left, &out_ptr, &out_bytes_left);
-        iconv_close(cd);
-        if (res == (size_t)-1) return false;
-        out.assign(outbuf.data(), outbuf.size() - out_bytes_left);
-        return true;
+        if (cd != (iconv_t)-1) {
+            size_t in_bytes_left = sz;
+            char *in_ptr = const_cast<char*>(reinterpret_cast<const char*>(bytes));
+            std::vector<char> outbuf((in_bytes_left + 1) * 2);
+            char *out_ptr = outbuf.data();
+            size_t out_bytes_left = outbuf.size();
+            size_t res = iconv(cd, &in_ptr, &in_bytes_left, &out_ptr, &out_bytes_left);
+            iconv_close(cd);
+            if (res != (size_t)-1) {
+                out.assign(outbuf.data(), outbuf.size() - out_bytes_left);
+                return true;
+            }
+            // fallthrough to manual converter
+        }
+#endif
+        if (utf16_bytes_to_utf8(bytes, sz, true, out)) return true;
+        return false;
     }
 
     // No BOM -> assume UTF-8 on POSIX

@@ -37,6 +37,7 @@ set(SRC_FILES
     mini_pack_writer_file.cpp
     utf8_to_utf16.cpp
     file_list_reader.cpp
+    utf16_to_utf8.cpp
 )
 
 if(WIN32)
