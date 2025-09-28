@@ -20,8 +20,6 @@ if(MSVC)
     endforeach()
 endif()
 
-find_package(xxHash CONFIG REQUIRED)
-
 # Source files
 set(SRC_FILES
     main.cpp
