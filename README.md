@@ -192,22 +192,6 @@ Each file entry (repeated `file_count` times, entries are tightly packed):
 
 ---
 
-注意事项：
-
-- `data_offset` 指向紧随 info 块之后的数据区内的位置（即数据区的起始为文件中全局偏移 `12 + InfoSize`）。
-
-- 文件名以长度前缀存储（不以 NUL 结束）。
-
-- 许多整数字段为 32 位，因此单个文件大小或 info 大小有 32 位限制。
-
-- `data_offset` points into the data area that immediately follows the info block (the data area starts at global file offset `12 + InfoSize`).
-
-- Name bytes are stored using the declared name encoding; filenames are not NUL-terminated (length-prefixed).
-
-- Many integer fields are 32-bit and therefore limits apply (e.g. individual file size must fit in uint32).
-
----
-
 ## 二进制布局示意（字节偏移表）
 
 ## Binary layout overview (byte offsets)
@@ -232,13 +216,17 @@ Below is an overview of typical byte offsets in a `.pack` file:
 
 ---
 
+注意事项：
 Notes:
 
+- `data_offset` 指向紧随 info 块之后的数据区内的位置（即数据区的起始为文件中全局偏移 `12 + InfoSize`）。
 - `data_offset` values point into the data area that follows immediately after the info block.
 
+- 文件名以长度前缀存储（文件名不以 NUL 结束）。
 - Name bytes are stored using the declared name encoding; filenames are not NUL-terminated (length-prefixed).
 
-- Many integer fields are 32-bit and therefore limits apply (e.g. individual file size must fit in uint32).
+- 单个文件和所有文件大小的总合都不能超过32位极限
+- The total size of a single file and all files cannot exceed the 32-bit limit
 
 ---
 
@@ -320,9 +308,9 @@ Issues and pull requests are welcome. Please ensure the code builds on mainstrea
 
 ## License
 
-项目中未包含特定许可证信息。请在仓库根目录添加 `LICENSE` 文件以明确许可条款。
+本项目采用 BSD 3-Clause 许可证发布，详见仓库根目录的 `LICENSE` 文件。
 
-This project does not include a specific license. Please add a `LICENSE` file in the repository root to specify licensing terms.
+This project is released under the BSD 3-Clause License; see the `LICENSE` file in the repository root for the full text.
 
 ---
 
