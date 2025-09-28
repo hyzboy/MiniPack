@@ -12,7 +12,6 @@
 #include "utf8_to_utf16.h"
 #include "mini_pack_builder.h"
 #include "mini_pack_builder_file.h"
-#include "save_to_file.h"
 
 static std::string trim(const std::string &s)
 {
@@ -76,17 +75,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Build pack by writing into a vector via a MiniPackWriter
-    std::vector<std::uint8_t> pack;
-    auto writer = create_vector_writer(pack);
-    MiniPackBuildResult result{};
-    if (!builder.build_pack(writer.get(), index_only, result, err)) {
-        std::cerr << err << "\n";
+    // Build pack by writing directly to output file using create_file_writer
+    auto writer = create_file_writer(out_path);
+    if (!writer) {
+        std::cerr << "Failed to open output file: " << out_path << "\n";
         return 1;
     }
 
-    // Write pack to disk
-    if (!save_to_file(out_path, pack, err)) {
+    MiniPackBuildResult result{};
+    if (!builder.build_pack(writer.get(), index_only, result, err)) {
         std::cerr << err << "\n";
         return 1;
     }

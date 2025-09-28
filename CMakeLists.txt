@@ -31,8 +31,6 @@ set(SRC_FILES
     pack_reader.h
     mini_pack_builder_file.h
     mini_pack_builder_file.cpp
-    save_to_file.h
-    save_to_file.cpp
 )
 
 if(WIN32)
