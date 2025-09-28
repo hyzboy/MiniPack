@@ -14,7 +14,7 @@ Lightweight file packaging tool and libraries (C++20).
 
 - An executable (`MiniPack`) that packs multiple files into a single `.pack` file.
 
--  读写 pack 的核心库（`minipack_writer`、`minipack_reader`、`minipack_utf`）。
+- 读写 pack 的核心库（`minipack_writer`、`minipack_reader`、`minipack_utf`）。
 
 - Core libraries for reading/writing packs (`minipack_writer`, `minipack_reader`, `minipack_utf`).
 
@@ -192,21 +192,19 @@ Each file entry (repeated `file_count` times, entries are tightly packed):
 
 ---
 
-Notes:
-
-Notes:
+注意事项：
 
 - `data_offset` 指向紧随 info 块之后的数据区内的位置（即数据区的起始为文件中全局偏移 `12 + InfoSize`）。
 
-- `data_offset` points into the data area that immediately follows the info block (the data area starts at global file offset `12 + InfoSize`).
-
 - 文件名以长度前缀存储（不以 NUL 结束）。
-
-- Names are stored length-prefixed (no trailing NUL).
 
 - 许多整数字段为 32 位，因此单个文件大小或 info 大小有 32 位限制。
 
-- Many integer fields are 32-bit, so individual file sizes and info block sizes are subject to 32-bit limits.
+- `data_offset` points into the data area that immediately follows the info block (the data area starts at global file offset `12 + InfoSize`).
+
+- Name bytes are stored using the declared name encoding; filenames are not NUL-terminated (length-prefixed).
+
+- Many integer fields are 32-bit and therefore limits apply (e.g. individual file size must fit in uint32).
 
 ---
 
@@ -236,17 +234,9 @@ Below is an overview of typical byte offsets in a `.pack` file:
 
 Notes:
 
-Notes:
-
-- `data_offset` values point into the data area that follows immediately after the info block.
-
 - `data_offset` values point into the data area that follows immediately after the info block.
 
 - Name bytes are stored using the declared name encoding; filenames are not NUL-terminated (length-prefixed).
-
-- Name bytes are stored using the declared name encoding; filenames are not NUL-terminated (length-prefixed).
-
-- Many integer fields are 32-bit and therefore limits apply (e.g. individual file size must fit in uint32).
 
 - Many integer fields are 32-bit and therefore limits apply (e.g. individual file size must fit in uint32).
 
