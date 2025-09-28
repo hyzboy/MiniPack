@@ -28,6 +28,10 @@ Lightweight file packaging tool and libraries (C++20).
 
 ## Main features
 
+- 除STL外不依赖任何第三方库
+
+- No third-party dependencies except for the STL.
+
 - 纯 C++20 实现，可移植到 Windows / POSIX 平台。
 
 - Pure C++20 implementation, portable to Windows / POSIX platforms.
