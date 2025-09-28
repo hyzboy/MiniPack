@@ -25,6 +25,14 @@ set(SRC_FILES
     main.cpp
     encoding.h
     utf8_to_utf16.h
+    mini_pack_builder.cpp
+    mini_pack_builder.h
+    pack_reader.cpp
+    pack_reader.h
+    mini_pack_builder_file.h
+    mini_pack_builder_file.cpp
+    save_to_file.h
+    save_to_file.cpp
 )
 
 if(WIN32)
