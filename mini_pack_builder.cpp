@@ -5,56 +5,9 @@
 #include <limits>
 #include <vector>
 #include <memory>
-#include <fstream>
 
 namespace {
 const char kMagic[8] = { 'M','I','N','I','P','A','C','K' };
-}
-
-// Vector writer implementation
-class VectorWriter : public MiniPackWriter {
-public:
-    explicit VectorWriter(std::vector<std::uint8_t> &out) : m_out(out) {}
-    bool write(const std::uint8_t *data, std::size_t size, std::string &err) override {
-        if (size == 0) return true;
-        try {
-            m_out.insert(m_out.end(), data, data + size);
-        } catch (const std::exception &e) {
-            err = e.what();
-            return false;
-        }
-        return true;
-    }
-private:
-    std::vector<std::uint8_t> &m_out;
-};
-
-// File writer implementation (owns an ofstream)
-class FileWriter : public MiniPackWriter {
-public:
-    explicit FileWriter(const std::string &path) : m_out(path, std::ios::binary) {}
-    bool ok() const { return static_cast<bool>(m_out); }
-    bool write(const std::uint8_t *data, std::size_t size, std::string &err) override {
-        if (size == 0) return true;
-        m_out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
-        if (!m_out) {
-            err = "Failed to write to file";
-            return false;
-        }
-        return true;
-    }
-private:
-    std::ofstream m_out;
-};
-
-std::unique_ptr<MiniPackWriter> create_vector_writer(std::vector<std::uint8_t> &out) {
-    return std::unique_ptr<MiniPackWriter>(new VectorWriter(out));
-}
-
-std::unique_ptr<MiniPackWriter> create_file_writer(const std::string &path) {
-    auto fw = std::unique_ptr<FileWriter>(new FileWriter(path));
-    if (!fw->ok()) return nullptr;
-    return fw;
 }
 
 MiniPackBuilder::MiniPackBuilder() = default;

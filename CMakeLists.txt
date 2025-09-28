@@ -31,6 +31,8 @@ set(SRC_FILES
     pack_reader.h
     mini_pack_builder_file.h
     mini_pack_builder_file.cpp
+    mini_pack_writer_vector.cpp
+    mini_pack_writer_file.cpp
 )
 
 if(WIN32)
