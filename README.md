@@ -166,7 +166,8 @@ The table below details the info block header and per-file entry fields (multi-b
 | 4 | 4 | `file_count` | uint32，包内文件总数。 |
 | 8 | N | `name_lengths[]` | `file_count` 个 1 字节长度（不含 NUL）。 |
 | 8+N | M | `names` | 按顺序拼接的 UTF-8 名称，每个以 `\0` 结尾。 |
-| 8+N+M | 8*file_count | `entries` | 每个文件的元数据：`data_length`(u32) + `data_offset`(u32)。 |
+| 8+N+M | 4*file_count | `entries` | 每个文件的data_offset|
+| 8+N+M+4*file_count | 4*file_count | `entries` | 每个文件的data_length|
 
 | Offset (in info) | Size | Field | Description |
 |---:|:---:|---|---|
@@ -174,7 +175,8 @@ The table below details the info block header and per-file entry fields (multi-b
 | 4 | 4 | `file_count` | uint32 total number of files in the package. |
 | 8 | N | `name_lengths[]` | `file_count` one-byte lengths (excluding NUL). |
 | 8+N | M | `names` | UTF-8 names concatenated, each terminated by `\0`. |
-| 8+N+M | 8*file_count | `entries` | Per-file metadata: `data_length`(u32) + `data_offset`(u32). |
+| 8+N+M | 4*file_count | `entries` | Per-file data_offset. |
+| 8+N+M+4*file_count | 4*file_count | `entries` | Per-file data_length |
 
 ---
 
