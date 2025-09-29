@@ -1,5 +1,4 @@
 #include "mini_pack_builder.h"
-#include "utf_conv.h"
 
 #include <limits>
 #include <vector>
@@ -40,37 +39,14 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     append_uint32(info, 1); // version
     append_uint32(info, static_cast<std::uint32_t>(m_entries.size()));
 
-    // Pack-level encoding: choose one encoding for the whole pack. Default to Utf8.
-    NameEncoding pack_enc = NameEncoding::Utf8;
-    info.push_back(static_cast<uint8_t>(pack_enc));
-
-    // write names: for Utf8 write length+bytes; for Utf16 write length (units) + LE bytes
+    // write names: always UTF-8, length-prefixed by 1 byte
     for (const auto &entry : m_entries) {
-        if (pack_enc == NameEncoding::Utf8) {
-            if (entry.name_utf8.size() > 0xFF) {
-                err = "Filename too long (max 255 bytes): " + entry.name_utf8;
-                return false;
-            }
-            info.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
-            info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
-        } else if (pack_enc == NameEncoding::Utf16Le) {
-            // convert UTF-8 to UTF-16LE on the fly
-            std::u16string u16;
-            if (!utf8_to_utf16(entry.name_utf8, u16)) {
-                err = "Failed to convert name to UTF-16: " + entry.name_utf8;
-                return false;
-            }
-            if (u16.size() > 0xFF) {
-                err = "Filename too long (max 255 UTF-16 units): " + entry.name_utf8;
-                return false;
-            }
-            info.push_back(static_cast<std::uint8_t>(u16.size()));
-            for (char16_t ch : u16) {
-                std::uint16_t v = static_cast<std::uint16_t>(ch);
-                info.push_back(static_cast<std::uint8_t>(v & 0xFF));
-                info.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
-            }
+        if (entry.name_utf8.size() > 0xFF) {
+            err = "Filename too long (max 255 bytes): " + entry.name_utf8;
+            return false;
         }
+        info.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
+        info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
     }
 
     offsets.clear();

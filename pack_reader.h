@@ -4,13 +4,6 @@
 #include <vector>
 #include <cstdint>
 #include <optional>
-#include <string>
-
-// Encoding indicator for stored filenames inside the pack info block
-enum class NameEncoding : uint8_t {
-    Utf8 = 0,
-    Utf16Le = 1,
-};
 
 struct MiniPackEntry {
     // Stored filename from the info block as UTF-8

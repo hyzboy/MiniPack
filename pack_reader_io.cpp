@@ -38,49 +38,18 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     uint32_t file_count = 0;
     if (!read_u32(file_count)) { err = "Info block corrupted (file_count)"; return false; }
 
-    // Read pack-level encoding byte
-    if (pos >= info.size()) { err = "Info block corrupted (missing pack encoding)"; return false; }
-    NameEncoding pack_enc = static_cast<NameEncoding>(info[pos++]);
-
     index.m_entries.reserve(file_count);
     for (uint32_t i = 0; i < file_count; ++i) {
         if (pos >= info.size()) { err = "Info block corrupted (name_len)"; return false; }
-        size_t name_len = 0;
-        // In pack-level encoding scheme, each name is stored as a single length byte followed by bytes.
-        name_len = info[pos++];
-
-        if (pack_enc == NameEncoding::Utf8) {
-            if (pos + name_len > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
-            std::string name;
-            name.reserve(name_len);
-            for (size_t j = 0; j < name_len; ++j) name.push_back(static_cast<char>(info[pos++]));
-
-            MiniPackEntry e;
-            e.name_utf8 = std::move(name);
-            index.m_entries.push_back(std::move(e));
-        } else if (pack_enc == NameEncoding::Utf16Le) {
-            // name_len is number of UTF-16 code units
-            if (pos + name_len * 2 > info.size()) { err = "Info block corrupted (utf16 name bytes)"; return false; }
-            std::u16string u16;
-            u16.reserve(name_len);
-            for (size_t j = 0; j < name_len; ++j) {
-                uint16_t v = static_cast<uint16_t>(info[pos] | (info[pos+1] << 8));
-                pos += 2;
-                u16.push_back(static_cast<char16_t>(v));
-            }
-            // convert to utf8 - use helper
-            std::string utf8;
-            if (!utf16_string_to_utf8(u16, utf8)) {
-                err = "Failed to convert UTF-16 name to UTF-8";
-                return false;
-            }
-            MiniPackEntry e;
-            e.name_utf8 = std::move(utf8);
-            index.m_entries.push_back(std::move(e));
-        } else {
-            err = "Unsupported name encoding";
-            return false;
-        }
+        size_t name_len = info[pos++];
+        if (pos + name_len > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
+        std::string name;
+        name.reserve(name_len);
+        for (size_t j = 0; j < name_len; ++j) name.push_back(static_cast<char>(info[pos++]));
+        
+        MiniPackEntry e;
+        e.name_utf8 = std::move(name);
+        index.m_entries.push_back(std::move(e));
     }
 
     // read metadata
