@@ -78,10 +78,12 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
         current_offset += entry.data.size();
     }
 
-    // 4) Append per-file metadata (size, offset) after names block
+    // 4) Append all data_offsets for all files, then all data_sizes for all files
+    for (std::size_t i = 0; i < m_entries.size(); ++i) {
+        append_uint32(info, offsets[i]);
+    }
     for (std::size_t i = 0; i < m_entries.size(); ++i) {
         append_uint32(info, static_cast<std::uint32_t>(m_entries[i].data.size()));
-        append_uint32(info, offsets[i]);
     }
 
     if (info.size() > std::numeric_limits<std::uint32_t>::max()) {

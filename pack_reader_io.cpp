@@ -61,12 +61,16 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
         index.m_entries.push_back(std::move(e));
     }
 
-    // Read per-file metadata
+    // Read metadata: first all data_offsets, then all data_sizes
+    std::vector<uint32_t> offsets(file_count, 0);
     for (uint32_t i = 0; i < file_count; ++i) {
-        uint32_t sz=0, off=0;
-        if (!read_u32(sz) || !read_u32(off)) { err = "Info block corrupted (metadata)"; return false; }
+        if (!read_u32(offsets[i])) { err = "Info block corrupted (offsets)"; return false; }
+    }
+    for (uint32_t i = 0; i < file_count; ++i) {
+        uint32_t sz = 0;
+        if (!read_u32(sz)) { err = "Info block corrupted (sizes)"; return false; }
         index.m_entries[i].size = sz;
-        index.m_entries[i].offset = off;
+        index.m_entries[i].offset = offsets[i];
     }
 
     index.set_info_size(info_size);

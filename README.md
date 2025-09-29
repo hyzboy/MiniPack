@@ -146,9 +146,9 @@ The following table gives an overview of the leading parts of a `.pack` file:
 
 ---
 
-说明：包内文件名始终使用 UTF-8 存储，不再包含“名称编码”字节。名称区布局调整为：先写入所有文件名长度（每个 1 字节，不含 NUL），再连续写入所有 UTF-8 名称，每个名称追加一个 `\0` 结尾。
+说明：包内文件名始终使用 UTF-8 存储，不再包含“名称编码”字节。名称区布局调整为：先写入所有文件名长度（每个 1 字节，不含 NUL），再连续写入所有 UTF-8 名称，每个名称追加一个 `\0` 结尾。元数据区布局调整为：先依次写入所有 `data_offset` 表，再依次写入所有 `data_size` 表。
 
-Note: Filenames in the pack are always stored as UTF-8; no per-pack name-encoding byte. The names area layout is: first all name lengths (1 byte each, excluding NUL), then all UTF-8 names back-to-back, each terminated by a single `\0`.
+Note: Filenames in the pack are always stored as UTF-8; no per-pack name-encoding byte. Names area layout: first all name lengths (1 byte each, excluding NUL), then all UTF-8 names back-to-back, each terminated with `\0`. Metadata area layout: first a table of all `data_offset` values, then a table of all `data_size` values.
 
 ---
 
@@ -166,8 +166,8 @@ The table below details the info block header and per-file entry fields (multi-b
 | 4 | 4 | `file_count` | uint32，包内文件总数。 |
 | 8 | N | `name_lengths[]` | `file_count` 个 1 字节长度（不含 NUL）。 |
 | 8+N | M | `names` | 按顺序拼接的 UTF-8 名称，每个以 `\0` 结尾。 |
-| 8+N+M | 4*file_count | `entries` | 每个文件的data_offset|
-| 8+N+M+4*file_count | 4*file_count | `entries` | 每个文件的data_length|
+| 8+N+M | 4*file_count | `data_offset[]` | 每个文件的数据偏移（相对于数据区起始）。 |
+| 8+N+M+4*file_count | 4*file_count | `data_size[]` | 每个文件的数据大小。 |
 
 | Offset (in info) | Size | Field | Description |
 |---:|:---:|---|---|
@@ -175,8 +175,8 @@ The table below details the info block header and per-file entry fields (multi-b
 | 4 | 4 | `file_count` | uint32 total number of files in the package. |
 | 8 | N | `name_lengths[]` | `file_count` one-byte lengths (excluding NUL). |
 | 8+N | M | `names` | UTF-8 names concatenated, each terminated by `\0`. |
-| 8+N+M | 4*file_count | `entries` | Per-file data_offset. |
-| 8+N+M+4*file_count | 4*file_count | `entries` | Per-file data_length |
+| 8+N+M | 4*file_count | `data_offset[]` | Each file's data offset (relative to data area start). |
+| 8+N+M+4*file_count | 4*file_count | `data_size[]` | Each file's data size. |
 
 ---
 
@@ -220,9 +220,9 @@ Notes:
 
   - Provides functionality to load and parse `.pack` files (e.g., read the info block and build an index) so consumers can query file lists and metadata.
 
-  - 包内文件名为 UTF-8 存储，读取依据“长度表 + NUL 结尾名称区”的新布局解析。
+  - 包内文件名为 UTF-8 存储，并按“长度表 + NUL 结尾名称区 + 偏移表 + 大小表”的新布局解析。
 
-  - Filenames in packs are stored as UTF-8 and parsed according to the new "length table + NUL-terminated names area" layout.
+  - Filenames in packs are stored as UTF-8 and parsed using the new layout: length table + NUL-terminated names area + offset table + size table.
 
 ---
 
