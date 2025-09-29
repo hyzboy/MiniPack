@@ -39,16 +39,27 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     append_uint32(info, 1); // version
     append_uint32(info, static_cast<std::uint32_t>(m_entries.size()));
 
-    // write names: always UTF-8, length-prefixed by 1 byte
+    // 1) Write all name lengths (uint8, not including the trailing NUL)
+    std::vector<std::uint8_t> name_lengths;
+    name_lengths.reserve(m_entries.size());
     for (const auto &entry : m_entries) {
         if (entry.name_utf8.size() > 0xFF) {
             err = "Filename too long (max 255 bytes): " + entry.name_utf8;
             return false;
         }
-        info.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
-        info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
+        name_lengths.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
+    }
+    // append lengths block
+    info.insert(info.end(), name_lengths.begin(), name_lengths.end());
+
+    // 2) Write all names as UTF-8, each followed by a NUL terminator (\0)
+    for (const auto &entry : m_entries) {
+        if (!entry.name_utf8.empty())
+            info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
+        info.push_back(0); // NUL terminator
     }
 
+    // 3) Compute offsets and total sizes
     offsets.clear();
     offsets.reserve(m_entries.size());
     std::uint64_t current_offset = 0;
@@ -67,6 +78,7 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
         current_offset += entry.data.size();
     }
 
+    // 4) Append per-file metadata (size, offset) after names block
     for (std::size_t i = 0; i < m_entries.size(); ++i) {
         append_uint32(info, static_cast<std::uint32_t>(m_entries[i].data.size()));
         append_uint32(info, offsets[i]);

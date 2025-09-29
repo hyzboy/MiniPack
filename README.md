@@ -146,9 +146,9 @@ The following table gives an overview of the leading parts of a `.pack` file:
 
 ---
 
-说明：包内文件名始终使用 UTF-8 存储，不再包含“名称编码”字节。
+说明：包内文件名始终使用 UTF-8 存储，不再包含“名称编码”字节。名称区布局调整为：先写入所有文件名长度（每个 1 字节，不含 NUL），再连续写入所有 UTF-8 名称，每个名称追加一个 `\0` 结尾。
 
-Note: Filenames in the pack are always stored as UTF-8; no per-pack name-encoding byte is written anymore.
+Note: Filenames in the pack are always stored as UTF-8; no per-pack name-encoding byte. The names area layout is: first all name lengths (1 byte each, excluding NUL), then all UTF-8 names back-to-back, each terminated by a single `\0`.
 
 ---
 
@@ -164,29 +164,17 @@ The table below details the info block header and per-file entry fields (multi-b
 |---:|:---:|---|---|
 | 0 | 4 | `version` | uint32，包格式版本。 |
 | 4 | 4 | `file_count` | uint32，包内文件总数。 |
+| 8 | N | `name_lengths[]` | `file_count` 个 1 字节长度（不含 NUL）。 |
+| 8+N | M | `names` | 按顺序拼接的 UTF-8 名称，每个以 `\0` 结尾。 |
+| 8+N+M | 8*file_count | `entries` | 每个文件的元数据：`data_length`(u32) + `data_offset`(u32)。 |
 
 | Offset (in info) | Size | Field | Description |
 |---:|:---:|---|---|
 | 0 | 4 | `version` | uint32 package format version. |
 | 4 | 4 | `file_count` | uint32 total number of files in the package. |
-
-随后是按 `file_count` 次重复的文件条目（entries are tightly packed after the header）：
-
-Each file entry follows, repeated `file_count` times (entries are tightly packed after the header):
-
-| Size | Field | 描述 |
-|:---:|---|---|
-| 1 | `name_length` | uint8，名字字节长度（不包含 NUL）。 |
-| name_length | `name` | 文件名字节（UTF-8 编码）。 |
-| 4 | `data_length` | uint32，该文件的数据长度（字节）。 |
-| 4 | `data_offset` | uint32，指向数据区内该文件数据的偏移（相对于数据区起始）。 |
-
-| Size | Field | Description |
-|:---:|---|---|
-| 1 | `name_length` | uint8 length of the name in bytes (excluding NUL). |
-| name_length | `name` | Filename bytes (UTF-8 encoded). |
-| 4 | `data_length` | uint32 length of the file data in bytes. |
-| 4 | `data_offset` | uint32 offset into the data area for this file's data (relative to start of the data area). |
+| 8 | N | `name_lengths[]` | `file_count` one-byte lengths (excluding NUL). |
+| 8+N | M | `names` | UTF-8 names concatenated, each terminated by `\0`. |
+| 8+N+M | 8*file_count | `entries` | Per-file metadata: `data_length`(u32) + `data_offset`(u32). |
 
 ---
 
@@ -196,8 +184,8 @@ Notes:
 - `data_offset` 指向紧随 info 块之后的数据区内的位置（即数据区的起始为文件中全局偏移 `12 + InfoSize`）。
 - `data_offset` values point into the data area that follows immediately after the info block.
 
-- 文件名以长度前缀存储（文件名不以 NUL 结束），并始终使用 UTF-8。
-- Filenames are length-prefixed (not NUL-terminated) and always UTF-8 encoded.
+- 文件名以长度表 + NUL 结尾的 UTF-8 名称区形式存储（非逐条长度前缀）。
+- Filenames are stored as a name-length table + a NUL-terminated UTF-8 names area (not per-entry length prefixes).
 
 - 单个文件和所有文件大小的总合都不能超过32位极限
 - The total size of a single file and all files cannot exceed the 32-bit limit
@@ -230,9 +218,9 @@ Notes:
 
   - Provides functionality to load and parse `.pack` files (e.g., read the info block and build an index) so consumers can query file lists and metadata.
 
-  - 包内文件名为 UTF-8 存储，读取时无需进行名称编码转换；项目仍链接 `minipack_utf` 以复用通用的文本/编码工具。
+  - 包内文件名为 UTF-8 存储，读取依据“长度表 + NUL 结尾名称区”的新布局解析。
 
-  - Filenames in packs are stored as UTF-8, so no name-encoding conversion is needed when reading; the project still links `minipack_utf` to reuse common text/encoding utilities.
+  - Filenames in packs are stored as UTF-8 and parsed according to the new "length table + NUL-terminated names area" layout.
 
 ---
 

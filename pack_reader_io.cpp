@@ -38,21 +38,30 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     uint32_t file_count = 0;
     if (!read_u32(file_count)) { err = "Info block corrupted (file_count)"; return false; }
 
+    // Read name lengths block (file_count bytes)
+    if (pos + file_count > info.size()) { err = "Info block corrupted (name lengths)"; return false; }
+    std::vector<uint8_t> name_lengths(file_count);
+    for (uint32_t i = 0; i < file_count; ++i) name_lengths[i] = info[pos++];
+
     index.m_entries.reserve(file_count);
+
+    // Read all names as UTF-8, each followed by a NUL terminator
     for (uint32_t i = 0; i < file_count; ++i) {
-        if (pos >= info.size()) { err = "Info block corrupted (name_len)"; return false; }
-        size_t name_len = info[pos++];
-        if (pos + name_len > info.size()) { err = "Info block corrupted (name bytes)"; return false; }
+        uint32_t len = name_lengths[i];
+        if (pos + len + 1 > info.size()) { err = "Info block corrupted (names area)"; return false; }
         std::string name;
-        name.reserve(name_len);
-        for (size_t j = 0; j < name_len; ++j) name.push_back(static_cast<char>(info[pos++]));
-        
+        if (len > 0) {
+            name.assign(reinterpret_cast<const char*>(&info[pos]), len);
+        }
+        pos += len;
+        if (info[pos++] != 0) { err = "Info block corrupted (missing NUL after name)"; return false; }
+
         MiniPackEntry e;
         e.name_utf8 = std::move(name);
         index.m_entries.push_back(std::move(e));
     }
 
-    // read metadata
+    // Read per-file metadata
     for (uint32_t i = 0; i < file_count; ++i) {
         uint32_t sz=0, off=0;
         if (!read_u32(sz) || !read_u32(off)) { err = "Info block corrupted (metadata)"; return false; }
