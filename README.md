@@ -180,43 +180,19 @@ The table below details the info block header and per-file entry fields (multi-b
 
 Each file entry (repeated `file_count` times, entries are tightly packed):
 
-| Entry Offset (relative to entry start) | Size | Field | 描述 |
-|---:|:---:|---|---|
-| 0 | 4 | `name_length` | uint32，名字字节长度（不包含 NUL）。 |
-| 4 | name_length | `name` | 文件名的字节流，使用 `name_encoding` 指定的编码。 |
-| 4 (after name) | 4 | `data_length` | uint32，该文件的数据长度（字节）。 |
-| 4 | 4 | `data_offset` | uint32，指向数据区内该文件数据的偏移（相对于数据区起始）。 |
+| Size | Field | 描述 |
+|:---:|---|---|
+| 1 | `name_length` | uint8，名字字节长度（不包含 NUL）。 |
+| name_length | `name` | 文件名的字节流，使用 `name_encoding` 指定的编码。 |
+| 4 | `data_length` | uint32，该文件的数据长度（字节）。 |
+| 4 | `data_offset` | uint32，指向数据区内该文件数据的偏移（相对于数据区起始）。 |
 
-| Entry Offset (relative to entry start) | Size | Field | Description |
-|---:|:---:|---|---|
-| 0 | 4 | `name_length` | uint32 length of the name in bytes (excluding NUL). |
-| 4 | name_length | `name` | Name bytes encoded using `name_encoding`. |
-| 4 (after name) | 4 | `data_length` | uint32 length of the file data in bytes. |
-| 4 | 4 | `data_offset` | uint32 offset into the data area for this file's data (relative to start of the data area). |
-
----
-
-## 二进制布局示意（字节偏移表）
-
-## Binary layout overview (byte offsets)
-
-下面给出一个典型 `.pack` 文件的字节偏移示意（概览）：
-
-Below is an overview of typical byte offsets in a `.pack` file:
-
-| Offset | Size | Description |
-|------:|:----:|---|
-| 0 | 8 | Magic: ASCII "MINIPACK" |
-| 8 | 4 | InfoSize = uint32 (length of the info block in bytes) |
-| 12 | InfoSize | Info block (参见 Info Block 布局表) |
-| 12 + InfoSize | (var) | Data area (optional): concatenated file data in entry order |
-
-| Offset | Size | Description |
-|------:|:----:|---|
-| 0 | 8 | Magic: ASCII "MINIPACK" |
-| 8 | 4 | InfoSize = uint32 (length of the info block in bytes) |
-| 12 | InfoSize | Info block (see Info Block layout table) |
-| 12 + InfoSize | (var) | Data area (optional): concatenated file data in entry order |
+| Size | Field | Description |
+|:---:|---|---|
+| 1 | `name_length` | uint8 length of the name in bytes (excluding NUL). |
+| name_length | `name` | Name bytes encoded using `name_encoding`. |
+| 4 | `data_length` | uint32 length of the file data in bytes. |
+| 4 | `data_offset` | uint32 offset into the data area for this file's data (relative to start of the data area). |
 
 ---
 
@@ -315,6 +291,10 @@ Issues and pull requests are welcome. Please ensure the code builds on mainstrea
 本项目采用 BSD 3-Clause 许可证发布，详见仓库根目录的 `LICENSE` 文件。
 
 This project is released under the BSD 3-Clause License; see the `LICENSE` file in the repository root for the full text.
+
+这个库过于简单，所以我们不关心您用它做什么，也不对任何使用该库的结果负责。您使用它产生的任何问题都与我们无关，请自行承担风险。
+
+This library is very simple, so we do not care what you do with it and are not responsible for any results of using it. Any issues arising from your use of it are your own responsibility; use at your own risk.
 
 ---
 
