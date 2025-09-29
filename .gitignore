@@ -16,3 +16,8 @@
 /MiniPack.dir
 /x64
 /build
+/minipack_reader.dir
+/minipack_utf.dir
+/minipack_writer.dir
+/CMakeCache.txt
+/cmake_install.cmake
