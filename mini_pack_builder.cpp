@@ -3,9 +3,10 @@
 #include <limits>
 #include <vector>
 #include <memory>
+#include<iostream>
 
 namespace {
-const char kMagic[8] = { 'M','I','N','I','P','A','C','K' };
+const char kMagic[8] = { 'M','i','n','i','P','a','c','k' };
 }
 
 MiniPackBuilder::MiniPackBuilder() = default;
@@ -23,6 +24,9 @@ bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const 
         err = "Buffer too large for MiniPack entry";
         return false;
     }
+
+    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name_utf8<<", data of size "<<data.size()<<")"<<std::endl;
+
     return add_entry_internal(name_utf8, data, err);
 }
 
