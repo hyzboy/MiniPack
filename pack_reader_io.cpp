@@ -45,7 +45,7 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
 
     index.m_entries.reserve(file_count);
 
-    // Read all names as UTF-8, each followed by a NUL terminator
+    // Read all names as raw bytes, each followed by a NUL terminator
     for (uint32_t i = 0; i < file_count; ++i) {
         uint32_t len = name_lengths[i];
         if (pos + len + 1 > info.size()) { err = "Info block corrupted (names area)"; return false; }
@@ -57,7 +57,7 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
         if (info[pos++] != 0) { err = "Info block corrupted (missing NUL after name)"; return false; }
 
         MiniPackEntry e;
-        e.name_utf8 = std::move(name);
+        e.name = std::move(name);
         index.m_entries.push_back(std::move(e));
     }
 

@@ -18,36 +18,36 @@ bool MiniPackBuilder::empty() const { return m_entries.empty(); }
 
 std::size_t MiniPackBuilder::file_count() const { return m_entries.size(); }
 
-bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const std::vector<std::uint8_t> &data, std::string &err)
+bool MiniPackBuilder::add_entry_from_buffer(const std::string &name, const std::vector<std::uint8_t> &data, std::string &err)
 {
-    if (name_utf8.empty()) { err = "Failed to convert name: empty"; return false; }
+    if (name.empty()) { err = "Failed to convert name: empty"; return false; }
     if (data.size() > std::numeric_limits<std::uint32_t>::max()) {
         err = "Buffer too large for MiniPack entry";
         return false;
     }
 
-    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name_utf8<<", data of size "<<data.size()<<")"<<std::endl;
+    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name<<", data of size "<<data.size()<<")"<<std::endl;
 
-    return add_entry_internal(name_utf8, data, err);
+    return add_entry_internal(name, data, err);
 }
 
-bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const void *data, std::uint32_t size, std::string &err)
+bool MiniPackBuilder::add_entry_from_buffer(const std::string &name, const void *data, std::uint32_t size, std::string &err)
 {
-    if (name_utf8.empty()) { err = "Failed to convert name: empty"; return false; }
+    if (name.empty()) { err = "Failed to convert name: empty"; return false; }
     if (size == 0) {
         // allow empty entry
         std::vector<std::uint8_t> empty;
-        return add_entry_internal(name_utf8, std::move(empty), err);
+        return add_entry_internal(name, std::move(empty), err);
     }
     if (data == nullptr) { err = "Data pointer is null"; return false; }
 
-    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name_utf8<<", raw pointer size "<<size<<")"<<std::endl;
+    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name<<", raw pointer size "<<size<<")"<<std::endl;
 
     // Copy into owned vector
     std::vector<std::uint8_t> buf;
     buf.resize(size);
     std::memcpy(buf.data(), data, size);
-    return add_entry_internal(name_utf8, std::move(buf), err);
+    return add_entry_internal(name, std::move(buf), err);
 }
 
 bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector<std::uint32_t> &offsets, MiniPackBuildResult &result, std::string &err) const
@@ -67,19 +67,19 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     std::vector<std::uint8_t> name_lengths;
     name_lengths.reserve(m_entries.size());
     for (const auto &entry : m_entries) {
-        if (entry.name_utf8.size() > 0xFF) {
-            err = "Filename too long (max 255 bytes): " + entry.name_utf8;
+        if (entry.name.size() > 0xFF) {
+            err = "Filename too long (max 255 bytes): " + entry.name;
             return false;
         }
-        name_lengths.push_back(static_cast<std::uint8_t>(entry.name_utf8.size()));
+        name_lengths.push_back(static_cast<std::uint8_t>(entry.name.size()));
     }
     // append lengths block
     info.insert(info.end(), name_lengths.begin(), name_lengths.end());
 
-    // 2) Write all names as UTF-8, each followed by a NUL terminator (\0)
+    // 2) Write all names as raw bytes, each followed by a NUL terminator (\0)
     for (const auto &entry : m_entries) {
-        if (!entry.name_utf8.empty())
-            info.insert(info.end(), entry.name_utf8.begin(), entry.name_utf8.end());
+        if (!entry.name.empty())
+            info.insert(info.end(), entry.name.begin(), entry.name.end());
         info.push_back(0); // NUL terminator
     }
 
@@ -151,20 +151,20 @@ void MiniPackBuilder::append_uint32(std::vector<std::uint8_t> &buf, std::uint32_
     for (int i = 0; i < 4; ++i) buf.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
 }
 
-bool MiniPackBuilder::add_entry_internal(std::string name_utf8, std::vector<std::uint8_t> data, std::string &err)
+bool MiniPackBuilder::add_entry_internal(std::string name, std::vector<std::uint8_t> data, std::string &err)
 {
-    if (name_utf8.empty()) { err = "Entry name cannot be empty"; return false; }
+    if (name.empty()) { err = "Entry name cannot be empty"; return false; }
     if (data.size() > std::numeric_limits<std::uint32_t>::max()) { err = "Entry size exceeds limit"; return false; }
-    m_entries.push_back(Entry{std::move(name_utf8), std::move(data)});
+    m_entries.push_back(Entry{std::move(name), std::move(data)});
     return true;
 }
 
-bool MiniPackBuilder::add_entry_internal(std::string name_utf8, const void *data, std::uint32_t size, std::string &err)
+bool MiniPackBuilder::add_entry_internal(std::string name, const void *data, std::uint32_t size, std::string &err)
 {
-    if (name_utf8.empty()) { err = "Entry name cannot be empty"; return false; }
+    if (name.empty()) { err = "Entry name cannot be empty"; return false; }
     if (size > std::numeric_limits<std::uint32_t>::max()) { err = "Entry size exceeds limit"; return false; }
     if (size == 0) {
-        m_entries.push_back(Entry{std::move(name_utf8), {}});
+        m_entries.push_back(Entry{std::move(name), {}});
         return true;
     }
     if (data == nullptr) { err = "Data pointer is null"; return false; }
@@ -172,6 +172,6 @@ bool MiniPackBuilder::add_entry_internal(std::string name_utf8, const void *data
     std::vector<std::uint8_t> buf;
     buf.resize(size);
     std::memcpy(buf.data(), data, size);
-    m_entries.push_back(Entry{std::move(name_utf8), std::move(buf)});
+    m_entries.push_back(Entry{std::move(name), std::move(buf)});
     return true;
 }

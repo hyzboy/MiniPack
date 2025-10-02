@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdint>
 
-bool add_file_to_builder(MiniPackBuilder &builder, const std::string &file_path, const std::string &stored_name_utf8, std::string &err)
+bool add_file_to_builder(MiniPackBuilder &builder, const std::string &file_path, const std::string &stored_name, std::string &err)
 {
     // Open file and read whole contents into memory
     std::ifstream in(file_path, std::ios::binary | std::ios::ate);
@@ -39,7 +39,7 @@ bool add_file_to_builder(MiniPackBuilder &builder, const std::string &file_path,
     }
     in.close();
 
-    std::string effective_name = stored_name_utf8.empty() ? file_path : stored_name_utf8;
+    std::string effective_name = stored_name.empty() ? file_path : stored_name;
     return builder.add_entry_from_buffer(effective_name, buffer, err);
 }
 

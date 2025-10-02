@@ -6,8 +6,8 @@
 #include <optional>
 
 struct MiniPackEntry {
-    // Stored filename from the info block as UTF-8
-    std::string name_utf8;
+    // Stored filename from the info block as plain bytes (ANSI)
+    std::string name;
     uint32_t size = 0;
     uint32_t offset = 0; // relative to start of data section
 };
