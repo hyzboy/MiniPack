@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include<iostream>
+#include <cstring>
 
 namespace {
 const char kMagic[8] = { 'M','i','n','i','P','a','c','k' };
@@ -28,6 +29,25 @@ bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const 
     std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name_utf8<<", data of size "<<data.size()<<")"<<std::endl;
 
     return add_entry_internal(name_utf8, data, err);
+}
+
+bool MiniPackBuilder::add_entry_from_buffer(const std::string &name_utf8, const void *data, std::uint32_t size, std::string &err)
+{
+    if (name_utf8.empty()) { err = "Failed to convert name: empty"; return false; }
+    if (size == 0) {
+        // allow empty entry
+        std::vector<std::uint8_t> empty;
+        return add_entry_internal(name_utf8, std::move(empty), err);
+    }
+    if (data == nullptr) { err = "Data pointer is null"; return false; }
+
+    std::cout<<"MiniPackBuilder::add_entry_from_buffer("<<name_utf8<<", raw pointer size "<<size<<")"<<std::endl;
+
+    // Copy into owned vector
+    std::vector<std::uint8_t> buf;
+    buf.resize(size);
+    std::memcpy(buf.data(), data, size);
+    return add_entry_internal(name_utf8, std::move(buf), err);
 }
 
 bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector<std::uint32_t> &offsets, MiniPackBuildResult &result, std::string &err) const
@@ -136,5 +156,22 @@ bool MiniPackBuilder::add_entry_internal(std::string name_utf8, std::vector<std:
     if (name_utf8.empty()) { err = "Entry name cannot be empty"; return false; }
     if (data.size() > std::numeric_limits<std::uint32_t>::max()) { err = "Entry size exceeds limit"; return false; }
     m_entries.push_back(Entry{std::move(name_utf8), std::move(data)});
+    return true;
+}
+
+bool MiniPackBuilder::add_entry_internal(std::string name_utf8, const void *data, std::uint32_t size, std::string &err)
+{
+    if (name_utf8.empty()) { err = "Entry name cannot be empty"; return false; }
+    if (size > std::numeric_limits<std::uint32_t>::max()) { err = "Entry size exceeds limit"; return false; }
+    if (size == 0) {
+        m_entries.push_back(Entry{std::move(name_utf8), {}});
+        return true;
+    }
+    if (data == nullptr) { err = "Data pointer is null"; return false; }
+
+    std::vector<std::uint8_t> buf;
+    buf.resize(size);
+    std::memcpy(buf.data(), data, size);
+    m_entries.push_back(Entry{std::move(name_utf8), std::move(buf)});
     return true;
 }

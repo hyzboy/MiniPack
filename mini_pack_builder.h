@@ -40,6 +40,8 @@ public:
 
     // Public API: add data buffers
     bool add_entry_from_buffer(const std::string &name_utf8,const std::vector<std::uint8_t> &data,std::string &err);
+    // Overload: add from raw pointer and size (uint32)
+    bool add_entry_from_buffer(const std::string &name_utf8,const void *data,std::uint32_t size,std::string &err);
 
     // Build the pack and write into provided writer pointer.
     bool build_pack(MiniPackWriter *writer,bool index_only,MiniPackBuildResult &result,std::string &err) const;
@@ -51,6 +53,8 @@ private:
     static void append_uint32(std::vector<std::uint8_t> &buf,std::uint32_t v);
 
     bool add_entry_internal(std::string name_utf8,std::vector<std::uint8_t> data,std::string &err);
+    // Overload: internal add using raw pointer and size (uint32)
+    bool add_entry_internal(std::string name_utf8,const void *data,std::uint32_t size,std::string &err);
 
     struct Entry
     {
