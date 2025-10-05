@@ -43,6 +43,12 @@ public:
     // Overload: add from raw pointer and size (uint32)
     bool add_entry_from_buffer(const std::string &name,const void *data,std::uint32_t size,std::string &err);
 
+    template<typename T>
+    bool add_entry_from_array(const std::string &name,const std::vector<T> &data,std::string &err)
+    {
+        return add_entry_from_buffer(name, reinterpret_cast<const std::uint8_t*>(data.data()), data.size()*sizeof(T), err);
+    }
+
     // Build the pack and write into provided writer pointer.
     bool build_pack(MiniPackWriter *writer,bool index_only,MiniPackBuildResult &result,std::string &err) const;
 
