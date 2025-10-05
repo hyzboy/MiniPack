@@ -3,7 +3,7 @@
 #include <limits>
 #include <vector>
 #include <memory>
-#include<iostream>
+#include <iostream>
 #include <cstring>
 
 namespace {
@@ -174,4 +174,57 @@ bool MiniPackBuilder::add_entry_internal(std::string name, const void *data, std
     std::memcpy(buf.data(), data, size);
     m_entries.push_back(Entry{std::move(name), std::move(buf)});
     return true;
+}
+
+void write_string_list(MiniPackBuilder *builder,const std::string &entry_name,const std::vector<std::string> &str_list,std::string &err)
+{
+    if (!builder) {
+        err = "Builder is null";
+        return;
+    }
+
+    if (entry_name.empty()) {
+        err = "Entry name cannot be empty";
+        return;
+    }
+
+    uint32_t str_count = static_cast<uint32_t>(str_list.size());
+
+    // Compute total length of all strings (+1 for each NUL)
+    std::uint32_t total_length = 0;
+    for (const auto &s : str_list) {
+        if (s.size() > 0xFF) {
+            err = "String too long (max 255 bytes): " + s;
+            return;
+        }
+        total_length += static_cast<std::uint32_t>(s.size()) + 1; // include NUL
+    }
+
+    // Build buffer: 4 bytes count, then str_count bytes of lengths, then strings with NULs
+    std::vector<std::uint8_t> buf;
+    buf.reserve(4 + str_count + total_length);
+
+    // Append count (little-endian)
+    for (int i = 0; i < 4; ++i) {
+        buf.push_back(static_cast<std::uint8_t>((str_count >> (8 * i)) & 0xFF));
+    }
+
+    // Append lengths
+    for (const auto &s : str_list) {
+        buf.push_back(static_cast<std::uint8_t>(s.size()));
+    }
+
+    // Append strings followed by NUL
+    for (const auto &s : str_list) {
+        if (!s.empty()) {
+            buf.insert(buf.end(), s.begin(), s.end());
+        }
+        buf.push_back(0);
+    }
+
+    // Add as a single entry
+    if (!builder->add_entry_from_buffer(entry_name, buf, err)) {
+        // err is already set by add_entry_from_buffer
+        return;
+    }
 }

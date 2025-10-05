@@ -64,3 +64,5 @@ private:
 
     std::vector<Entry> m_entries;
 };
+
+void write_string_list(MiniPackBuilder *builder,const std::string &entry_name,const std::vector<std::string> &list,std::string &err);
