@@ -1,4 +1,4 @@
-#if !defined(_WIN32)
+﻿#if !defined(_WIN32)
 #include "encoding.h"
 #include "utf_conv.h"
 #include <vector>

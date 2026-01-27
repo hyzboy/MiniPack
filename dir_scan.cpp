@@ -1,4 +1,4 @@
-#include "dir_scan.h"
+﻿#include "dir_scan.h"
 #include <filesystem>
 #include <system_error>
 

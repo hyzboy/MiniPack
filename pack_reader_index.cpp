@@ -1,4 +1,4 @@
-#include "pack_reader.h"
+﻿#include "pack_reader.h"
 
 MiniPackIndex::MiniPackIndex() = default;
 

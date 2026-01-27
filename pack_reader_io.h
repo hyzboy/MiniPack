@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "pack_reader.h"
 #include <string>

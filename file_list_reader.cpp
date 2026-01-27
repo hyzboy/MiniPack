@@ -1,4 +1,4 @@
-#include "file_list_reader.h"
+﻿#include "file_list_reader.h"
 
 #include <sstream>
 #include <algorithm>
