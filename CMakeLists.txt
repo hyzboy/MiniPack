@@ -48,6 +48,9 @@ set(MINIPACK_WRITER_SOURCES
 )
 add_library(minipack_writer STATIC ${MINIPACK_WRITER_SOURCES})
 
+# Export include directory for dependent projects
+target_include_directories(minipack_writer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 # UTF/encoding support
 set(MINIPACK_UTF_SOURCES
     utf8_to_utf16.cpp
