@@ -56,8 +56,6 @@ protected:
     bool build_index(std::vector<std::uint8_t> &header,std::vector<std::uint32_t> &offsets,MiniPackBuildResult &result,std::string &err) const;
 
 private:
-    static void append_uint32(std::vector<std::uint8_t> &buf,std::uint32_t v);
-
     bool add_entry_internal(std::string name,std::vector<std::uint8_t> data,std::string &err);
     // Overload: internal add using raw pointer and size (uint32)
     bool add_entry_internal(std::string name,const void *data,std::uint32_t size,std::string &err);

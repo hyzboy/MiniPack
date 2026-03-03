@@ -1,14 +1,11 @@
 ﻿#include "mini_pack_builder.h"
+#include "minipack_format.h"
 
 #include <limits>
 #include <vector>
 #include <memory>
 #include <iostream>
 #include <cstring>
-
-namespace {
-const char kMagic[8] = { 'M','i','n','i','P','a','c','k' };
-}
 
 MiniPackBuilder::MiniPackBuilder() = default;
 
@@ -60,8 +57,8 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     std::vector<std::uint8_t> info;
     info.reserve(16 * m_entries.size());
 
-    append_uint32(info, 1); // version
-    append_uint32(info, static_cast<std::uint32_t>(m_entries.size()));
+    minipack_format::append_u32_le(info, minipack_format::kVersion);
+    minipack_format::append_u32_le(info, static_cast<std::uint32_t>(m_entries.size()));
 
     // 1) Write all name lengths (uint8, not including the trailing NUL)
     std::vector<std::uint8_t> name_lengths;
@@ -104,10 +101,10 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
 
     // 4) Append all data_offsets for all files, then all data_sizes for all files
     for (std::size_t i = 0; i < m_entries.size(); ++i) {
-        append_uint32(info, offsets[i]);
+        minipack_format::append_u32_le(info, offsets[i]);
     }
     for (std::size_t i = 0; i < m_entries.size(); ++i) {
-        append_uint32(info, static_cast<std::uint32_t>(m_entries[i].data.size()));
+        minipack_format::append_u32_le(info, static_cast<std::uint32_t>(m_entries[i].data.size()));
     }
 
     if (info.size() > std::numeric_limits<std::uint32_t>::max()) {
@@ -116,8 +113,8 @@ bool MiniPackBuilder::build_index(std::vector<std::uint8_t> &header, std::vector
     }
 
     header.clear();
-    header.insert(header.end(), std::begin(kMagic), std::end(kMagic));
-    append_uint32(header, static_cast<std::uint32_t>(info.size()));
+    header.insert(header.end(), std::begin(minipack_format::kMagic), std::end(minipack_format::kMagic));
+    minipack_format::append_u32_le(header, static_cast<std::uint32_t>(info.size()));
     header.insert(header.end(), info.begin(), info.end());
 
     result.info_size = info.size();
@@ -144,11 +141,6 @@ bool MiniPackBuilder::build_pack(MiniPackWriter *writer, bool index_only, MiniPa
     }
 
     return true;
-}
-
-void MiniPackBuilder::append_uint32(std::vector<std::uint8_t> &buf, std::uint32_t v)
-{
-    for (int i = 0; i < 4; ++i) buf.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
 }
 
 bool MiniPackBuilder::add_entry_internal(std::string name, std::vector<std::uint8_t> data, std::string &err)
@@ -205,9 +197,7 @@ void write_string_list(MiniPackBuilder *builder,const std::string &entry_name,co
     buf.reserve(4 + str_count + total_length);
 
     // Append count (little-endian)
-    for (int i = 0; i < 4; ++i) {
-        buf.push_back(static_cast<std::uint8_t>((str_count >> (8 * i)) & 0xFF));
-    }
+    minipack_format::append_u32_le(buf, str_count);
 
     // Append lengths
     for (const auto &s : str_list) {

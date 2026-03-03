@@ -1,6 +1,7 @@
 ﻿#include "pack_reader_io.h"
 #include "pack_reader.h"
 #include "utf_conv.h"
+#include "minipack_format.h"
 
 #include <fstream>
 #include <cstring>
@@ -11,16 +12,15 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     std::ifstream in(path, std::ios::binary);
     if (!in) { err = "Failed to open pack file: " + path; return false; }
 
-    char magic[8];
-    in.read(magic, 8);
-    if (in.gcount() != 8) { err = "Failed to read pack header"; return false; }
-    const char expect[8] = {'M','I','N','I','P','A','C','K'};
-    if (std::memcmp(magic, expect, 8) != 0) { err = "Invalid pack magic"; return false; }
+    char magic[minipack_format::kMagicSize];
+    in.read(magic, static_cast<std::streamsize>(minipack_format::kMagicSize));
+    if (in.gcount() != static_cast<std::streamsize>(minipack_format::kMagicSize)) { err = "Failed to read pack header"; return false; }
+    if (std::memcmp(magic, minipack_format::kMagic, minipack_format::kMagicSize) != 0) { err = "Invalid pack magic"; return false; }
 
     uint8_t b[4];
     in.read(reinterpret_cast<char*>(b), 4);
     if (in.gcount() != 4) { err = "Failed to read info size"; return false; }
-    uint32_t info_size = static_cast<uint32_t>(b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24));
+    uint32_t info_size = minipack_format::read_u32_le_4(b);
 
     std::vector<uint8_t> info(info_size);
     in.read(reinterpret_cast<char*>(info.data()), static_cast<std::streamsize>(info_size));
@@ -28,10 +28,7 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
 
     size_t pos = 0;
     auto read_u32 = [&](uint32_t &out) -> bool {
-        if (pos + 4 > info.size()) return false;
-        out = static_cast<uint32_t>(info[pos] | (info[pos+1] << 8) | (info[pos+2] << 16) | (info[pos+3] << 24));
-        pos += 4;
-        return true;
+        return minipack_format::read_u32_le(info, pos, out);
     };
     uint32_t version = 0;
     if (!read_u32(version)) { err = "Info block corrupted (version)"; return false; }
@@ -74,7 +71,7 @@ bool load_minipack_index(const std::string &path, MiniPackIndex &index, std::str
     }
 
     index.set_info_size(info_size);
-    index.set_data_start(8 + 4 + info_size);
+    index.set_data_start(minipack_format::data_start_offset(info_size));
     return true;
 }
 
@@ -84,12 +81,12 @@ bool read_minipack_entry_data(const std::string &path, const MiniPackEntry &entr
     if (!in) { err = "Failed to open pack for reading: " + path; return false; }
     // compute data start by reading header again
     // seek to info size
-    in.seekg(8, std::ios::beg);
+    in.seekg(static_cast<std::streamoff>(minipack_format::kInfoSizeOffset), std::ios::beg);
     uint8_t b[4];
     in.read(reinterpret_cast<char*>(b), 4);
     if (in.gcount() != 4) { err = "Failed to read info size"; return false; }
-    uint32_t info_size = static_cast<uint32_t>(b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24));
-    std::uint64_t data_start = 8 + 4 + info_size;
+    uint32_t info_size = minipack_format::read_u32_le_4(b);
+    std::uint64_t data_start = minipack_format::data_start_offset(info_size);
     in.seekg(static_cast<std::streamoff>(data_start + entry.offset), std::ios::beg);
     out.resize(entry.size);
     in.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(entry.size));

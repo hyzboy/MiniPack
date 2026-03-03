@@ -82,28 +82,24 @@ cmake --build . --config Release
 
 - 通过文件列表打包：
   `MiniPack list.txt output.pack`
-  其中 `list.txt` 每行一个要打包的文件路径。
 
 - Pack using a file list:
   `MiniPack list.txt output.pack`
-  where `list.txt` contains one file path per line.
 
 ---
 
 - 直接打包目录：
   `MiniPack path/to/directory output.pack`
-  将递归枚举目录下的所有常规文件，存储名为相对于目录的路径。
 
 - Pack a directory directly:
   `MiniPack path/to/directory output.pack`
-  This recursively enumerates all regular files under the directory and stores names as paths relative to the directory.
 
 ---
 
 - 只写索引（不写数据）：
   `MiniPack path/to/directory output.pack --index-only`
 
-- Write only the index (no data):
+- Write only index (without data):
   `MiniPack path/to/directory output.pack --index-only`
 
 ---
@@ -132,14 +128,14 @@ The following table gives an overview of the leading parts of a `.pack` file:
 
 | 字段 | 偏移 / 大小 | 描述 |
 |---|---:|---|
-| Magic | 0 (8 bytes) | ASCII `"MINIPACK"`，用于识别文件类型。 |
+| Magic | 0 (8 bytes) | ASCII `"MiniPack"`，用于识别文件类型。 |
 | InfoSize | 8 (4 bytes, little-endian uint32) | 表示紧随其后的 info 块长度（字节数）。 |
 | Info Block | 12 (InfoSize bytes) | 包含包级元数据与每个文件的条目（详见下方“Info Block 布局”表）。 |
 | Data Area | 12 + InfoSize (variable) | 可选，紧跟 info 块后的各文件原始字节流，按条目顺序拼接。若使用 `--index-only` 则不存在数据区。 |
 
 | Field | Offset / Size | Description |
 |---|---:|---|
-| Magic | 0 (8 bytes) | ASCII "MINIPACK" used to identify the file type. |
+| Magic | 0 (8 bytes) | ASCII "MiniPack" used to identify the file type. |
 | InfoSize | 8 (4 bytes, little-endian uint32) | Length in bytes of the following info block. |
 | Info Block | 12 (InfoSize bytes) | Contains package-level metadata and per-file entries (see the Info Block layout table below). |
 | Data Area | 12 + InfoSize (variable) | Optional; concatenated raw file data that follows the info block. If `--index-only` is used, no data area is present. |

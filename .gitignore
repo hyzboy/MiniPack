@@ -22,3 +22,9 @@
 /CMakeCache.txt
 /cmake_install.cmake
 /.cmake
+/minipack_modules.dir
+/MinSizeRel
+/Release
+/RelWithDebInfo
+/bin
+/Debug
