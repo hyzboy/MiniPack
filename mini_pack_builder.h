@@ -70,3 +70,33 @@ private:
 };
 
 void write_string_list(MiniPackBuilder *builder,const std::string &entry_name,const std::vector<std::string> &list,std::string &err);
+
+// ---- byte-stream buffer -------------------------------------------------
+// Wraps a vector<uint8_t> and provides typed append helpers used when
+// serialising variable-length list entries into a MiniPack buffer.
+
+struct ByteStreamBuffer
+{
+    std::vector<uint8_t> buf;
+
+    void push_i32(int32_t v)
+    {
+        const uint8_t *b = reinterpret_cast<const uint8_t *>(&v);
+        buf.insert(buf.end(), b, b + 4);
+    }
+
+    void push_u32(uint32_t v)
+    {
+        const uint8_t *b = reinterpret_cast<const uint8_t *>(&v);
+        buf.insert(buf.end(), b, b + 4);
+    }
+
+    // uint32 fileLen + char[fileLen]  (no NUL terminator)
+    void push_str(const std::string &s)
+    {
+        push_u32(static_cast<uint32_t>(s.size()));
+        buf.insert(buf.end(), s.begin(), s.end());
+    }
+
+    uint32_t byte_size() const { return static_cast<uint32_t>(buf.size()); }
+};
