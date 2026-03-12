@@ -72,30 +72,66 @@ private:
 void write_string_list(MiniPackBuilder *builder,const std::string &entry_name,const std::vector<std::string> &list,std::string &err);
 
 // ---- byte-stream buffer -------------------------------------------------
-// Wraps a vector<uint8_t> and provides typed append helpers used when
-// serialising variable-length list entries into a MiniPack buffer.
+// Shared byte builder used both for variable-length entry serialization and
+// larger aligned payload assembly.
 
 struct ByteStreamBuffer
 {
     std::vector<uint8_t> buf;
 
+    uint32_t append_bytes(const void *data,uint32_t size,uint32_t align=1)
+    {
+        if(align>1)
+        {
+            const uint32_t mod=static_cast<uint32_t>(buf.size())%align;
+            if(mod!=0)
+                buf.insert(buf.end(),align-mod,0);
+        }
+
+        const uint32_t off=static_cast<uint32_t>(buf.size());
+
+        if(size>0)
+        {
+            if(data)
+            {
+                const uint8_t *p=reinterpret_cast<const uint8_t *>(data);
+                buf.insert(buf.end(),p,p+size);
+            }
+            else
+            {
+                buf.insert(buf.end(),size,0);
+            }
+        }
+
+        return off;
+    }
+
+    template<typename T>
+    uint32_t append_pod(const T &value,uint32_t align=1)
+    {
+        return append_bytes(&value,static_cast<uint32_t>(sizeof(T)),align);
+    }
+
+    uint32_t append(const void *data,uint32_t size,uint32_t align=4)
+    {
+        return append_bytes(data,size,align);
+    }
+
     void push_i32(int32_t v)
     {
-        const uint8_t *b = reinterpret_cast<const uint8_t *>(&v);
-        buf.insert(buf.end(), b, b + 4);
+        append_pod(v);
     }
 
     void push_u32(uint32_t v)
     {
-        const uint8_t *b = reinterpret_cast<const uint8_t *>(&v);
-        buf.insert(buf.end(), b, b + 4);
+        append_pod(v);
     }
 
     // uint32 fileLen + char[fileLen]  (no NUL terminator)
     void push_str(const std::string &s)
     {
         push_u32(static_cast<uint32_t>(s.size()));
-        buf.insert(buf.end(), s.begin(), s.end());
+        append_bytes(s.empty()?nullptr:s.data(),static_cast<uint32_t>(s.size()));
     }
 
     uint32_t byte_size() const { return static_cast<uint32_t>(buf.size()); }
