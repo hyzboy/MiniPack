@@ -84,17 +84,26 @@ add_executable(${PROJECT_NAME} main.cpp file_list_reader.cpp dir_scan.cpp)
 # Link libraries to executable
 target_link_libraries(${PROJECT_NAME} PRIVATE minipack_writer minipack_reader minipack_utf)
 
+# Executable: pack inspector – list entries stored in a pack file
+add_executable(minipack_info pack_info_main.cpp)
+target_link_libraries(minipack_info PRIVATE minipack_reader minipack_utf)
+set_target_properties(minipack_info PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
 # Compiler warnings/options
 if(MSVC)
     target_compile_options(minipack_writer PRIVATE /W4)
     target_compile_options(minipack_reader PRIVATE /W4)
     target_compile_options(minipack_utf PRIVATE /W4)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(minipack_info PRIVATE /W4)
 else()
     target_compile_options(minipack_writer PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(minipack_reader PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(minipack_utf PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(minipack_info PRIVATE -Wall -Wextra -Wpedantic)
     # link with iconv on posix if available (needed by utf conversions)
     find_library(ICONV_LIB NAMES iconv)
     if(ICONV_LIB)
